@@ -1,0 +1,28 @@
+.nav {
+  width: 100%;
+  padding: 12px 24px;
+  background-color: #2563eb;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.button {
+  background-color: #1e40af;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: #1b3a94;
+  }
+}
