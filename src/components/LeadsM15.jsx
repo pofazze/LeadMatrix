@@ -1,33 +1,63 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, Fragment } from 'react';
 import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import { Popover, Transition } from '@headlessui/react';
 import styles from './LeadsM15.module.scss';
+import CustomDropdown from './CustomDropdown.jsx';
+
+// Componente de Ícone
+const ChevronDownIcon = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+  </svg>
+);
 
 function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
+  // Estados para os filtros e visualização
   const [cidadeFiltro, setCidadeFiltro] = useState('');
   const [canalFiltro, setCanalFiltro] = useState('');
   const [edicaoFiltro, setEdicaoFiltro] = useState('');
   const [viewMode, setViewMode] = useState('table');
+  
+  // Estado e lógica para o dropdown de exportação
+  const [isExportMenuOpen, setExportMenuOpen] = useState(false);
+  let exportTimeout;
 
+  const handleExportMenuEnter = () => {
+    clearTimeout(exportTimeout);
+    setExportMenuOpen(true);
+  };
+  const handleExportMenuLeave = () => {
+    exportTimeout = setTimeout(() => {
+      setExportMenuOpen(false);
+    }, 200);
+  };
+
+  // Memoização para extrair opções únicas para os filtros
   const cidadesUnicas = useMemo(() =>
     Array.from(new Set(leads.map(lead =>
       lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
         ? lead.cidade.seOutra
         : lead.cidade?.cidade
-    ).filter(Boolean))).sort()
-  , [leads]);
+    ).filter(Boolean))).sort(),
+    [leads]
+  );
 
   const canaisUnicos = useMemo(() =>
     Array.from(new Set(leads.map(lead =>
       lead.canaldeaquisicao?.origem
-    ).filter(Boolean))).sort()
-  , [leads]);
+    ).filter(Boolean))).sort(),
+    [leads]
+  );
 
   const edicoesUnicas = useMemo(() =>
-    Array.from(new Set(leads.map(lead => lead.edicao).filter(Boolean))).sort()
-  , [leads]);
+    Array.from(new Set(leads.map(lead => lead.edicao).filter(Boolean))).sort(),
+    [leads]
+  );
 
+  // Memoização para filtrar os leads com base nos estados dos filtros
   const leadsFiltrados = useMemo(() =>
     leads.filter(lead => {
       const cidade = lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
@@ -36,9 +66,41 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
       return (!cidadeFiltro || cidade === cidadeFiltro)
         && (!canalFiltro || lead.canaldeaquisicao?.origem === canalFiltro)
         && (!edicaoFiltro || lead.edicao === edicaoFiltro);
-    }), [leads, cidadeFiltro, canalFiltro, edicaoFiltro]
+    }),
+    [leads, cidadeFiltro, canalFiltro, edicaoFiltro]
   );
 
+  // Função para exportar os dados filtrados para CSV ou Excel
+  const exportarPlanilha = (formato) => {
+    const dadosParaExportar = leadsFiltrados.map(lead => ({
+      'Nome': lead.nome,
+      'WhatsApp': lead.whatsappNumber,
+      'Email': lead.email,
+      'Edição': lead.edicao,
+      'Cidade': lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
+        ? lead.cidade.seOutra
+        : lead.cidade?.cidade || '-',
+      'Canal de aquisição': lead.canaldeaquisicao?.origem || '-',
+    }));
+
+    if (formato === 'csv') {
+      const csv = Papa.unparse(dadosParaExportar);
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, 'leads_filtrados.csv');
+    }
+
+    if (formato === 'excel') {
+      const worksheet = XLSX.utils.json_to_sheet(dadosParaExportar);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Leads");
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+      saveAs(blob, 'leads_filtrados.xlsx');
+    }
+    setExportMenuOpen(false); // Fecha o menu após a exportação
+  };
+
+  // Definição das colunas para a tabela
   const columns = useMemo(() => [
     { header: 'Nome', accessorKey: 'nome' },
     { header: 'WhatsApp', accessorKey: 'whatsappNumber' },
@@ -65,63 +127,72 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
         </div>
       ),
     },
-  ], [onEdit, onView, onSendMessage, styles.actionBtns]);
+  ], [onEdit, onView, onSendMessage]);
 
+  // Instância da tabela
   const table = useReactTable({
     data: leadsFiltrados,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  function exportarCSV() {
-    const dadosExportar = leads.filter(lead => {
-      const cidade = lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
-        ? lead.cidade.seOutra
-        : lead.cidade?.cidade;
-      return (!cidadeFiltro || cidade === cidadeFiltro);
-    }).map(lead => ({
-      Nome: lead.nome,
-      WhatsApp: lead.whatsappNumber,
-      Email: lead.email,
-      Edição: lead.edicao,
-      Cidade: lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
-        ? lead.cidade.seOutra
-        : lead.cidade?.cidade || '-',
-      'Canal de aquisição': lead.canaldeaquisicao?.origem || '-',
-    }));
-
-    const csv = Papa.unparse(dadosExportar);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, `leads_${cidadeFiltro || 'todas'}.csv`);
-  }
-
   return (
     <div className={styles.wrapper}>
       <div className={styles.controls}>
-        <select value={cidadeFiltro} onChange={e => setCidadeFiltro(e.target.value)}>
-          <option value="">Cidade</option>
-          {cidadesUnicas.map(cidade =>
-            <option key={cidade} value={cidade}>{cidade}</option>
-          )}
-        </select>
-        <select value={canalFiltro} onChange={e => setCanalFiltro(e.target.value)}>
-          <option value="">Canal</option>
-          {canaisUnicos.map(canal =>
-            <option key={canal} value={canal}>{canal}</option>
-          )}
-        </select>
-        <select value={edicaoFiltro} onChange={e => setEdicaoFiltro(e.target.value)}>
-          <option value="">Edição</option>
-          {edicoesUnicas.map(ed =>
-            <option key={ed} value={ed}>{ed}</option>
-          )}
-        </select>
-        <button onClick={exportarCSV} className={styles.exportBtn}>Exportar CSV</button>
+        {/* Filtros personalizados */}
+        <CustomDropdown
+          label="Cidade"
+          value={cidadeFiltro}
+          options={cidadesUnicas}
+          onSelect={setCidadeFiltro}
+        />
+        <CustomDropdown
+          label="Canal"
+          value={canalFiltro}
+          options={canaisUnicos}
+          onSelect={setCanalFiltro}
+        />
+        <CustomDropdown
+          label="Edição"
+          value={edicaoFiltro}
+          options={edicoesUnicas}
+          onSelect={setEdicaoFiltro}
+        />
+
+        {/* Dropdown de Exportação */}
+        <Popover className={styles.dropdown}>
+          <div onMouseEnter={handleExportMenuEnter} onMouseLeave={handleExportMenuLeave}>
+            <Popover.Button as="div" className={`${styles.dropdownBtn} ${styles.exportBtn}`}>
+              Baixar Planilha
+              <ChevronDownIcon className={styles.dropdownIcon} aria-hidden="true" />
+            </Popover.Button>
+            <Transition
+              show={isExportMenuOpen}
+              as={Fragment}
+              enter="transition ease-out duration-200"
+              enterFrom="opacity-0 translate-y-1"
+              enterTo="opacity-100 translate-y-0"
+              leave="transition ease-in duration-150"
+              leaveFrom="opacity-100 translate-y-0"
+              leaveTo="opacity-0 translate-y-1"
+            >
+              <Popover.Panel static className={`${styles.dropdownMenu} ${styles.exportMenu}`}>
+                <div className={styles.dropdownItemsWrapper}>
+                  <button className={styles.dropdownItem} onClick={() => exportarPlanilha('csv')}>CSV</button>
+                  <button className={styles.dropdownItem} onClick={() => exportarPlanilha('excel')}>Excel (.xlsx)</button>
+                </div>
+              </Popover.Panel>
+            </Transition>
+          </div>
+        </Popover>
+
+        {/* Botão de alternar visualização */}
         <button className={styles.toggleBtn} onClick={() => setViewMode(viewMode === 'table' ? 'mini' : 'table')}>
-          {viewMode === 'table' ? 'Miniaturas' : 'Tabela'}
+          {viewMode === 'table' ? 'Tabela' : 'Miniaturas'}
         </button>
       </div>
 
+      {/* Renderização condicional da Tabela */}
       {viewMode === 'table' && (
         <div className={styles.tableContainer}>
           <table className={styles.table}>
@@ -152,6 +223,7 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
         </div>
       )}
 
+      {/* Renderização condicional das Miniaturas */}
       {viewMode === 'mini' && (
         <div className={styles.miniGrid}>
           {leadsFiltrados.map(lead => {

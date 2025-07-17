@@ -18,7 +18,10 @@ export default function Navbar() {
 
   return (
     <nav className={styles.nav}>
-      <div className={styles.brand}>LeadMatrix</div>
+      <Link to="/painel" className={styles.link}>
+        <div className={styles.brand}>LeadMatrix</div>
+      </Link>
+
       <div>
         {user && (
           <span style={{ marginRight: 12 }}>
@@ -33,7 +36,7 @@ export default function Navbar() {
             Registrar usuário
           </Link>
         )}
-                {canRegister && (
+        {canRegister && (
           <Link to="/Disparo" className={styles.link}>
             Disparar mensagens
           </Link>
