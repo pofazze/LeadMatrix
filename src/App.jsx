@@ -3,14 +3,21 @@ import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import Painel from './pages/Painel';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRouteRole from './components/ProtectedRouteRole';
 import Registro from './pages/Registro';
+import Disparo from './pages/Disparo';
+import './Global.module.scss';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Ambas as rotas abrem o login */}
           <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* Rota protegida (qualquer usuário autenticado) */}
           <Route
             path="/painel"
             element={
@@ -19,6 +26,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Rota só para admin */}
           <Route
             path="/registro"
             element={
@@ -28,7 +37,14 @@ function App() {
             }
           />
 
-
+          <Route
+            path="/disparo"
+            element={
+              <ProtectedRouteRole allowedRoles={['admin']}>
+                <Disparo />
+              </ProtectedRouteRole>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

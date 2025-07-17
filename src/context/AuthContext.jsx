@@ -9,50 +9,82 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    console.log('[AuthContext] Token no localStorage:', token);
+
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      // Buscar os dados do usuário
-      axios.get('/api/me')
+      axios.get('/webhook/me')
         .then(res => {
-          const userData = res.data;
+          // Garante que retorna objeto, não array
+          const data = Array.isArray(res.data) ? res.data[0] : res.data;
+          console.log('[AuthContext] Dados do /me:', data);
           setUser({
-            id: userData.id,
-            usuario: userData.usuario,
-            role: userData.role || 'user', // fallback para user
+            id: data.id,
+            usuario: data.usuario,
+            role: data.role || 'user',
+            gender: data.gender, // <-- trocado aqui!
+            project: data.project,
+            whatsapp: data.whatsapp,
+            iat: data.iat,
           });
         })
-        .catch(() => setUser(null))
-        .finally(() => setAuthChecked(true));
+        .catch(err => {
+          console.error('[AuthContext] Erro ao buscar /me:', err);
+          setUser(null);
+        })
+        .finally(() => {
+          setAuthChecked(true);
+          console.log('[AuthContext] Finalizou checagem de auth');
+        });
     } else {
       setAuthChecked(true);
+      console.log('[AuthContext] Nenhum token, liberou authChecked');
     }
   }, []);
 
   const login = async (usuario, senha) => {
+    setUser(null);
+    setAuthChecked(false);
+    console.log('[AuthContext] Iniciando login...');
+
     const res = await axios.post('/webhook/panelauth', { usuario, senha });
 
-    if (!res.data.success) {
+    if (!res.data.success || !res.data.token) {
       throw new Error(res.data.message || 'Login falhou');
     }
 
     localStorage.setItem('token', res.data.token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+    console.log('[AuthContext] Token salvo após login:', res.data.token);
 
-    // Buscar os dados do usuário após login
-    const me = await axios.get('/api/me');
+    const meRes = await axios.get('/webhook/me');
+    const data = Array.isArray(meRes.data) ? meRes.data[0] : meRes.data;
+    console.log('[AuthContext] Dados retornados após login:', data);
+
     setUser({
-      id: me.data.id,
-      usuario: me.data.usuario,
-      role: me.data.role || 'user',
+      id: data.id,
+      usuario: data.usuario,
+      role: data.role || 'user',
+      gender: data.gender, // <-- trocado aqui!
+      project: data.project,
+      whatsapp: data.whatsapp,
+      iat: data.iat,
     });
+    setAuthChecked(true);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    setAuthChecked(true);
+    console.log('[AuthContext] Logout realizado');
   };
+
+  useEffect(() => {
+    console.log('[AuthContext] User atualizado:', user);
+    console.log('[AuthContext] AuthChecked:', authChecked);
+  }, [user, authChecked]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, authChecked }}>

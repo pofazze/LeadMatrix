@@ -1,17 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function ProtectedRouteRole({ children, allowedRoles = [] }) {
+export default function ProtectedRoute({ children }) {
   const { user, authChecked } = useAuth();
 
+  // Aguarda validação de autenticação (pode colocar spinner aqui)
   if (!authChecked) return null;
 
-  if (!user) return <Navigate to="/" />;
+  // Não logado? Redireciona pro login
+  if (!user) return <Navigate to="/" replace />;
 
-  // Adiciona proteção contra undefined
-  if (!Array.isArray(allowedRoles) || !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" />;
-  }
-
+  // Logado? Renderiza o conteúdo protegido
   return children;
 }

@@ -1,12 +1,15 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import styles from './Navbar.module.scss';
-import { Link } from 'react-router-dom';
 
 export default function Navbar() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  console.log('user em Navbar:', user);
+
+  const canRegister = user && user.role === 'admin';
 
   const handleLogout = () => {
     logout();
@@ -16,14 +19,26 @@ export default function Navbar() {
   return (
     <nav className={styles.nav}>
       <div className={styles.brand}>LeadMatrix</div>
-      <button onClick={handleLogout} className={styles.button}>
-        Sair
-      </button>
-      {canRegister && (
-        <Link to="/registro" className={styles.link}>
-          Registrar usuário
-        </Link>
-      )}
+      <div>
+        {user && (
+          <span style={{ marginRight: 12 }}>
+            {user.usuario} {user.gender ? `(${user.gender})` : ''}
+          </span>
+        )}
+        <button onClick={handleLogout} className={styles.button}>
+          Sair
+        </button>
+        {canRegister && (
+          <Link to="/registro" className={styles.link}>
+            Registrar usuário
+          </Link>
+        )}
+                {canRegister && (
+          <Link to="/Disparo" className={styles.link}>
+            Disparar mensagens
+          </Link>
+        )}
+      </div>
     </nav>
   );
 }

@@ -1,0 +1,58 @@
+.wrapper { padding: 20px; }
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.exportBtn, .toggleBtn {
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tableContainer { overflow-x: auto; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+th, td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.vazio { color: #aaa; margin: 24px 0; }
+.actionBtns button,
+.cardActions button {
+  background: #f1f1f1;
+  border: none;
+  margin: 0 2px;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.miniGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.miniCard {
+  background: #f8f8f8;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0001;
+  padding: 14px 16px;
+  min-width: 210px;
+  max-width: 260px;
+}
+.cardHeader {
+  font-size: 1.07em;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.cardBody div { font-size: .96em; margin-bottom: 3px; }
+.cardActions { display: flex; gap: 8px; margin-top: 8px; }

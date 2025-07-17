@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import styles from './Login.module.scss';
 import { useAuth } from '../context/AuthContext';
+import styles from './Login.module.scss';
+import { Navigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { user, authChecked, login } = useAuth();
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redireciona após autenticação, independente da rota ("/" ou "/login")
+  if (authChecked && user) {
+    return <Navigate to="/painel" replace />;
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,7 +22,9 @@ export default function Login() {
 
     try {
       await login(usuario, senha);
-      window.location.href = '/painel';
+      // Não precisa usar window.location.href!
+      // O Navigate acima já faz o redirecionamento.
+      // (O estado user vai ser atualizado, causando rerender)
     } catch (error) {
       setErro(error.message || 'Erro no login');
     } finally {
