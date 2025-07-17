@@ -1,128 +1,194 @@
 // src/pages/WhatsappChatPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { io } from 'socket.io-client';
 
-// Importando a UI de Chat e os estilos necessários
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 import {
   MainContainer, Sidebar, Search, ConversationList, Conversation,
   ChatContainer, MessageList, Message, MessageInput, Avatar,
-  ConversationHeader, TypingIndicator
+  ConversationHeader, AttachmentButton
 } from '@chatscope/chat-ui-kit-react';
 
-// --- DADOS TEMPORÁRIOS (MOCK DATA) ---
-// Mais tarde, isso virá do seu n8n
-const mockConversations = [
-  {
-    whatsappNumber: "5511987654321",
-    chatName: "Ana Silva",
-    profilePic: "https://ui-avatars.com/api/?name=Ana+Silva",
-    info: "Ok, obrigada!"
-  },
-  {
-    whatsappNumber: "5521912345678",
-    chatName: "Carlos Souza",
-    profilePic: "https://ui-avatars.com/api/?name=Carlos+Souza",
-    info: "Recebeu o arquivo?"
-  }
-];
-
-const mockMessages = {
-  "5511987654321": [
-    { message: "Olá! Gostaria de saber mais sobre o produto.", direction: 'incoming', sender: 'Ana Silva', position: 'single' },
-    { message: "Claro, Ana! Do que você precisa?", direction: 'outgoing', sender: 'Você', position: 'single' }
-  ],
-  "5521912345678": [
-    { message: "Boa tarde, enviei o documento por email.", direction: 'incoming', sender: 'Carlos Souza', position: 'single' }
-  ]
-};
-// --- FIM DOS DADOS TEMPORÁRIOS ---
-
+const WEBSOCKET_URL = 'https://chat-websocket-server-production-c4b7.up.railway.app';
+const SEU_NOME = "patrickSuyti";
 
 function WhatsappChatPage() {
-  // Estados para controlar a UI
+  const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
-  const [activeChat, setActiveChat] = useState(null); // Conterá o objeto da conversa ativa
+  const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInputValue, setMessageInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const fileInputRef = useRef(null);
 
-  // Efeito para carregar os dados iniciais (usando nossos mocks por enquanto)
+  // --- A MUDANÇA PRINCIPAL ESTÁ AQUI ---
+  // Usamos uma referência para sempre ter o valor mais atual do chat ativo
+  // sem precisar recriar o listener do socket.
+  const activeChatRef = useRef(null);
+  activeChatRef.current = activeChat;
+
+  // Efeito 1: Conectar ao WebSocket
   useEffect(() => {
-    // TODO: No futuro, substituir isso por uma chamada à API do n8n
-    setConversations(mockConversations);
+    const newSocket = io(WEBSOCKET_URL);
+    setSocket(newSocket);
+    return () => newSocket.close();
   }, []);
 
-  // Função para quando o usuário clica em uma conversa na lista
-  const handleConversationClick = (convo) => {
-    setActiveChat(convo);
-    // Carrega as mensagens do mock correspondente
-    // TODO: No futuro, substituir por chamada à API do n8n
-    setMessages(mockMessages[convo.whatsappNumber] || []);
-  };
-  
-  // Função para "enviar" uma nova mensagem (por enquanto, só adiciona na tela)
-  const handleSend = (text) => {
-    if (!activeChat) return;
+  // Efeito 2: Buscar conversas iniciais
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('/webhook/get-conversations');
+        const formattedConversations = response.data.map(convo => ({
+            ...convo,
+            info: convo.messages?.[0]?.content || (convo.messages?.[0]?.type ? `[Mídia]` : "")
+        }));
+        setConversations(formattedConversations);
+      } catch (error) { console.error("Erro ao buscar conversas:", error); }
+      finally { setLoading(false); }
+    };
+    fetchConversations();
+  }, []);
 
-    const newMessage = {
-      message: text,
-      direction: 'outgoing',
-      sender: 'Você',
-      position: 'single'
+  // Efeito 3: Configurar o listener do socket (AGORA SÓ DEPENDE DO SOCKET)
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (payload) => {
+      const currentActiveChat = activeChatRef.current; // Pega o valor mais recente!
+      
+      if (currentActiveChat && `conversa-${currentActiveChat.whatsappNumber}` === payload.channel) {
+        const { data } = payload;
+        const novaMensagem = {
+          message: data.content,
+          sentTime: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          sender: data.author,
+          direction: data.author === SEU_NOME ? 'outgoing' : 'incoming',
+          position: 'single',
+          type: data.type || 'text',
+          payload: (data.type === 'image' || data.type === 'video') ? { src: data.url } : null
+        };
+        setMessages(prev => [...prev, novaMensagem]);
+      }
     };
 
-    setMessages(prevMessages => [...prevMessages, newMessage]);
-    setMessageInputValue(""); // Limpa o campo de input
+    socket.on('nova-mensagem', handleNewMessage);
 
-    // TODO: No futuro, chamar o webhook do n8n para enviar a mensagem de verdade
+    return () => {
+      socket.off('nova-mensagem', handleNewMessage);
+    };
+  }, [socket]); // Removida a dependência [activeChat] para evitar recriações desnecessárias
+
+  const handleConversationClick = async (convo) => {
+    setActiveChat(convo);
+    if (socket) {
+      socket.emit('join-channel', `conversa-${convo.whatsappNumber}`);
+    }
+    try {
+      const response = await axios.get(`/webhook/get-chat-history?phone=${convo.whatsappNumber}`);
+      const formattedMessages = response.data.map(msg => ({
+        message: msg.content,
+        sentTime: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sender: msg.author,
+        direction: msg.author === SEU_NOME ? 'outgoing' : 'incoming',
+        position: 'single',
+        type: msg.type || 'text',
+        payload: (msg.type === 'image' || msg.type === 'video') ? { src: msg.url } : null
+      }));
+      setMessages(formattedMessages);
+      if (response.data.some(msg => msg.author !== SEU_NOME && msg.read === false)) {
+        axios.post('/webhook/mark-as-read', { phone: convo.whatsappNumber });
+      }
+    } catch (error) { console.error("Erro ao buscar histórico:", error); }
+  };
+  
+  const handleSendText = async (text) => {
+    if (!activeChat || !text.trim()) return;
+    const payload = { phone: activeChat.whatsappNumber, message: text };
+    setMessageInputValue("");
+    try {
+      await axios.post('/webhook/send-text-message', payload);
+    } catch (error) { console.error("Erro ao chamar webhook de envio:", error); }
+  };
+
+  const handleAttachmentClick = () => {
+    if (!activeChat) return;
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !activeChat) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('phone', activeChat.whatsappNumber);
+    try {
+      await axios.post('/webhook/send-media-message', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    } catch (error) { console.error("Erro ao enviar mídia:", error); }
+    event.target.value = null;
   };
 
   return (
-    // Ajuste a altura conforme necessário (ex: 100vh se ocupar a tela toda)
-    <div style={{ height: 'calc(100vh - 60px)', position: 'relative' }}> 
+    <div style={{ height: 'calc(100vh - 60px)', position: 'relative' }}>
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*,video/*" />
       <MainContainer responsive>
         <Sidebar position="left" scrollable>
           <Search placeholder="Procurar..." />
-          <ConversationList>
-            {conversations.map(convo => (
-              <Conversation
-                key={convo.whatsappNumber}
-                name={convo.chatName}
-                info={convo.info}
-                active={activeChat?.whatsappNumber === convo.whatsappNumber}
-                onClick={() => handleConversationClick(convo)}
-              >
-                <Avatar src={convo.profilePic} name={convo.chatName} />
-              </Conversation>
-            ))}
-          </ConversationList>
+          {loading ? ( <div style={{textAlign: 'center', color: '#aaa', padding: '20px'}}>Carregando...</div> ) : (
+            <ConversationList>
+              {conversations.map(convo => (
+                <Conversation key={convo.whatsappNumber} name={convo.chatName} info={convo.info} active={activeChat?.whatsappNumber === convo.whatsappNumber} onClick={() => handleConversationClick(convo)}>
+                  <Avatar src={convo.profilePic || `https://ui-avatars.com/api/?name=${convo.chatName.replace(/\s+/g, "+")}`} name={convo.chatName} />
+                </Conversation>
+              ))}
+            </ConversationList>
+          )}
         </Sidebar>
 
         <ChatContainer>
-          {activeChat ? (
-            <>
-              <ConversationHeader>
-                <Avatar src={activeChat.profilePic} name={activeChat.chatName} />
-                <ConversationHeader.Content userName={activeChat.chatName} info="online" />
-              </ConversationHeader>
-              <MessageList typingIndicator={isTyping ? <TypingIndicator content="Digitando..." /> : null}>
-                {messages.map((msg, index) => (
-                  <Message key={index} model={msg} />
-                ))}
-              </MessageList>
-              <MessageInput
-                placeholder="Digite sua mensagem aqui..."
-                value={messageInputValue}
-                onChange={setMessageInputValue}
-                onSend={handleSend}
-                attachButton={false}
-              />
-            </>
-          ) : (
-            <div style={{ textAlign: 'center', margin: 'auto', color: '#aaa', fontSize: '1.2em' }}>
-              Selecione uma conversa para começar
-            </div>
+          {activeChat && (
+            <ConversationHeader>
+              <Avatar src={activeChat.profilePic || `https://ui-avatars.com/api/?name=${activeChat.chatName.replace(/\s+/g, "+")}`} name={activeChat.chatName} />
+              <ConversationHeader.Content userName={activeChat.chatName} />
+            </ConversationHeader>
+          )}
+          <MessageList>
+            {!activeChat ? (
+              <MessageList.Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{ textAlign: 'center', color: '#aaa', fontSize: '1.2em' }}>
+                  Selecione uma conversa para começar
+                </div>
+              </MessageList.Content>
+            ) : (
+              messages.map((msg, index) => (
+                <Message key={index} model={{ direction: msg.direction, position: 'single' }}>
+                  {msg.type === 'text' ? (
+                      <Message.TextContent text={msg.message} />
+                  ) : msg.type === 'image' && msg.payload ? (
+                      <Message.ImageContent src={msg.payload.src} width={250} />
+                  ) : msg.type === 'video' && msg.payload ? (
+                      <Message.CustomContent>
+                          <video width="300" controls> <source src={msg.payload.src} type="video/mp4" /> </video>
+                      </Message.CustomContent>
+                  ) : (
+                    <Message.TextContent text={msg.message || '[Mídia não suportada]'} />
+                  )}
+                </Message>
+              ))
+            )}
+          </MessageList>
+          {activeChat && (
+            <MessageInput
+              placeholder="Digite sua mensagem aqui..."
+              value={messageInputValue}
+              onChange={setMessageInputValue}
+              onSend={handleSendText}
+              onAttachClick={handleAttachmentClick}
+              attachButton
+            />
           )}
         </ChatContainer>
       </MainContainer>

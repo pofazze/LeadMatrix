@@ -1,267 +1,202 @@
-import React, { useState, useRef } from "react";
-import axios from "axios";
-import styles from "./WhatsAppForm.module.scss";
-import { useAuth } from "../context/AuthContext"; // ajuste se precisar
+// src/pages/WhatsappChatPage.jsx
 
-export default function WhatsAppForm() {
-  const webhookURL = "/webhook/disparom15"; // webhook fixo
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import { io } from 'socket.io-client';
 
-  const [message, setMessage] = useState("");
-  const [status, setStatus] = useState("");
-  const [mediaType, setMediaType] = useState("none");
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [video, setVideo] = useState(null);
-  const [videoPreview, setVideoPreview] = useState(null);
-  const textareaRef = useRef(null);
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
+import {
+  MainContainer, Sidebar, Search, ConversationList, Conversation,
+  ChatContainer, MessageList, Message, MessageInput, Avatar,
+  ConversationHeader, AttachmentButton
+} from '@chatscope/chat-ui-kit-react';
 
-  const { token } = useAuth();
+// --- CONFIGURAÇÃO ---
+// O frontend SEMPRE usará as variáveis de ambiente públicas.
+// O Vite substitui essas variáveis durante o processo de 'build'.
+// Em desenvolvimento, o proxy do vite.config.js é usado.
+const API_BASE_URL = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '';
+const WEBSOCKET_URL = import.meta.env.PROD ? import.meta.env.VITE_WEBSOCKET_URL : '/';
 
-  function insertAroundSelection(tag) {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = message.substring(start, end);
-    let tagOpen, tagClose;
+// Cria uma instância do axios para usar a URL base correta
+const apiClient = axios.create({
+  baseURL: API_BASE_URL
+});
 
-    if (tag === "bold") tagOpen = tagClose = "*";
-    else if (tag === "italic") tagOpen = tagClose = "_";
-    else if (tag === "strike") tagOpen = tagClose = "~";
-    else tagOpen = tagClose = "";
+const SEU_NOME = "patrickSuyti";
 
-    const before = message.substring(0, start);
-    const after = message.substring(end);
-    const newText = before + tagOpen + selected + tagClose + after;
-    setMessage(newText);
+function WhatsappChatPage() {
+  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageInputValue, setMessageInputValue] = useState("");
+  const [socket, setSocket] = useState(null);
+  const fileInputRef = useRef(null);
+  const activeChatRef = useRef(null);
+  activeChatRef.current = activeChat;
 
-    setTimeout(() => {
-      textarea.setSelectionRange(start + tagOpen.length, end + tagOpen.length);
-      textarea.focus();
-    }, 0);
-  }
+  // Efeito 1: Conectar ao WebSocket
+  useEffect(() => {
+    const newSocket = io(WEBSOCKET_URL);
+    setSocket(newSocket);
+    return () => newSocket.close();
+  }, []);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result);
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // Efeito 2: Buscar a lista inicial de conversas
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/webhook/get-conversations');
+        const formattedConversations = response.data.map(convo => ({
+            ...convo,
+            info: convo.messages?.[0]?.content || (convo.messages?.[0]?.type ? `[Mídia]` : "")
+        }));
+        setConversations(formattedConversations);
+      } catch (error) { console.error("Erro ao buscar conversas:", error); }
+      finally { setLoading(false); }
+    };
+    fetchConversations();
+  }, []);
 
-  const handleRemoveImage = () => {
-    setImage(null);
-    setImagePreview(null);
-  };
-
-  const handleVideoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setVideo(reader.result);
-        setVideoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveVideo = () => {
-    setVideo(null);
-    setVideoPreview(null);
-  };
-
-  const handleMediaTypeChange = (type) => {
-    setMediaType(type);
-    if (type !== "image") {
-      setImage(null);
-      setImagePreview(null);
-    }
-    if (type !== "video") {
-      setVideo(null);
-      setVideoPreview(null);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus("Enviando...");
-
-    try {
-      const payload = {
-        message,
-        messageType:
-          mediaType === "image"
-            ? "image"
-            : mediaType === "video"
-            ? "video"
-            : "noMedia",
-      };
-      if (mediaType === "image" && image) payload.image = image;
-      if (mediaType === "video" && video) payload.video = video;
-
-      await axios.post(webhookURL, payload, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setStatus("✅ Mensagens enviadas com sucesso!");
-      setMessage("");
-      setMediaType("none");
-      setImage(null);
-      setImagePreview(null);
-      setVideo(null);
-      setVideoPreview(null);
-    } catch (err) {
-      if (err.response) {
-        setStatus("❌ Erro ao enviar.");
-      } else {
-        setStatus("❌ Erro de conexão.");
+  // Efeito 3: Escutar eventos em tempo real
+  useEffect(() => {
+    if (!socket) return;
+    const handleNewMessage = (payload) => {
+      const currentActiveChat = activeChatRef.current;
+      if (currentActiveChat && `conversa-${currentActiveChat.whatsappNumber}` === payload.channel) {
+        const { data } = payload;
+        const novaMensagem = {
+          message: data.content,
+          sentTime: new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          sender: data.author,
+          direction: data.author === SEU_NOME ? 'outgoing' : 'incoming',
+          position: 'single',
+          type: data.type || 'text',
+          payload: (data.type === 'image' || data.type === 'video') ? { src: data.url } : null
+        };
+        setMessages(prev => [...prev, novaMensagem]);
       }
-      console.error(err);
-    }
+    };
+    socket.on('nova-mensagem', handleNewMessage);
+    return () => socket.off('nova-mensagem', handleNewMessage);
+  }, [socket]);
+
+  // --- FUNÇÕES DE INTERAÇÃO ---
+
+  const handleConversationClick = async (convo) => {
+    setActiveChat(convo);
+    if (socket) socket.emit('join-channel', `conversa-${convo.whatsappNumber}`);
+    try {
+      const response = await apiClient.get(`/webhook/get-chat-history?phone=${convo.whatsappNumber}`);
+      const formattedMessages = response.data.map(msg => ({
+        message: msg.content,
+        sentTime: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        sender: msg.author,
+        direction: msg.author === SEU_NOME ? 'outgoing' : 'incoming',
+        position: 'single',
+        type: msg.type || 'text',
+        payload: (msg.type === 'image' || msg.type === 'video') ? { src: msg.url } : null
+      }));
+      setMessages(formattedMessages);
+      if (response.data.some(msg => msg.author !== SEU_NOME && msg.read === false)) {
+        apiClient.post('/webhook/mark-as-read', { phone: convo.whatsappNumber });
+      }
+    } catch (error) { console.error("Erro ao buscar histórico do chat:", error); }
+  };
+  
+  const handleSendText = async (text) => {
+    if (!activeChat || !text.trim()) return;
+    const payload = { phone: activeChat.whatsappNumber, message: text };
+    setMessageInputValue("");
+    try {
+      await apiClient.post('/webhook/send-text-message', payload);
+    } catch (error) { console.error("Erro ao chamar webhook de envio:", error); }
+  };
+
+  const handleAttachmentClick = () => {
+    if (!activeChat) return;
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file || !activeChat) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('phone', activeChat.whatsappNumber);
+    try {
+      await apiClient.post('/webhook/send-media-message', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    } catch (error) { console.error("Erro ao enviar mídia:", error); }
+    event.target.value = null;
   };
 
   return (
-    <form className={styles.formBox} onSubmit={handleSubmit}>
-      <label className={styles.label}>Mensagem:</label>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <button
-          type="button"
-          className={styles.formatBtn}
-          onClick={() => insertAroundSelection("bold")}
-        >
-          <b>B</b>
-        </button>
-        <button
-          type="button"
-          className={styles.formatBtn}
-          onClick={() => insertAroundSelection("italic")}
-        >
-          <i>I</i>
-        </button>
-        <button
-          type="button"
-          className={styles.formatBtn}
-          onClick={() => insertAroundSelection("strike")}
-        >
-          <span style={{ textDecoration: "line-through" }}>S</span>
-        </button>
-        <span style={{ marginLeft: 8, color: "#bbb", fontSize: 12 }}>
-          Usa os botões para <b>*negrito*</b>, <i>_itálico_</i> ou <s>~riscado~</s>
-        </span>
-      </div>
-      <textarea
-        ref={textareaRef}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        rows={5}
-        className={styles.input}
-        placeholder="Digite e use os botões acima para formatar seu texto..."
-        required
-      />
-
-      <div style={{ marginBottom: 12 }}>
-        <span className={styles.label}>Anexar mídia:</span>
-        <div style={{ display: "flex", gap: 18, marginTop: 6 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="radio"
-              name="media"
-              checked={mediaType === "none"}
-              onChange={() => handleMediaTypeChange("none")}
-            />
-            Nenhum
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="radio"
-              name="media"
-              checked={mediaType === "image"}
-              onChange={() => handleMediaTypeChange("image")}
-            />
-            Imagem
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input
-              type="radio"
-              name="media"
-              checked={mediaType === "video"}
-              onChange={() => handleMediaTypeChange("video")}
-            />
-            Vídeo
-          </label>
-        </div>
-      </div>
-
-      {mediaType === "image" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className={styles.input}
-          />
-          {imagePreview && (
-            <div className={styles.imagePreviewWrapper}>
-              <img
-                src={imagePreview}
-                alt="Pré-visualização"
-                className={styles.imagePreview}
-              />
-              <button
-                type="button"
-                className={styles.removeButton}
-                onClick={handleRemoveImage}
-                title="Remover imagem"
-              >
-                ×
-              </button>
-            </div>
+    <div style={{ height: 'calc(100vh - 60px)', position: 'relative' }}>
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*,video/*" />
+      <MainContainer responsive>
+        <Sidebar position="left" scrollable>
+          <Search placeholder="Procurar..." />
+          {loading ? ( <div style={{textAlign: 'center', color: '#aaa', padding: '20px'}}>Carregando...</div> ) : (
+            <ConversationList>
+              {conversations.map(convo => (
+                <Conversation key={convo.whatsappNumber} name={convo.chatName} info={convo.info} active={activeChat?.whatsappNumber === convo.whatsappNumber} onClick={() => handleConversationClick(convo)}>
+                  <Avatar src={convo.profilePic || `https://ui-avatars.com/api/?name=${convo.chatName.replace(/\s+/g, "+")}`} name={convo.chatName} />
+                </Conversation>
+              ))}
+            </ConversationList>
           )}
-        </div>
-      )}
+        </Sidebar>
 
-      {mediaType === "video" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <input
-            type="file"
-            accept="video/*"
-            onChange={handleVideoChange}
-            className={styles.input}
-          />
-          {videoPreview && (
-            <div className={styles.imagePreviewWrapper}>
-              <video
-                src={videoPreview}
-                className={styles.imagePreview}
-                controls
-                autoPlay
-                loop
-              />
-              <button
-                type="button"
-                className={styles.removeButton}
-                onClick={handleRemoveVideo}
-                title="Remover vídeo"
-              >
-                ×
-              </button>
-            </div>
+        <ChatContainer>
+          {activeChat && (
+            <ConversationHeader>
+              <Avatar src={activeChat.profilePic || `https://ui-avatars.com/api/?name=${activeChat.chatName.replace(/\s+/g, "+")}`} name={activeChat.chatName} />
+              <ConversationHeader.Content userName={activeChat.chatName} />
+            </ConversationHeader>
           )}
-        </div>
-      )}
-
-      <button type="submit" className={styles.submitButton}>
-        Enviar Mensagem
-      </button>
-      <p>{status}</p>
-    </form>
+          <MessageList>
+            {!activeChat ? (
+              <MessageList.Content style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{ textAlign: 'center', color: '#aaa', fontSize: '1.2em' }}>
+                  Selecione uma conversa para começar
+                </div>
+              </MessageList.Content>
+            ) : (
+              messages.map((msg, index) => (
+                <Message key={index} model={{ direction: msg.direction, position: 'single' }}>
+                  {msg.type === 'text' ? (
+                      <Message.TextContent text={msg.message} />
+                  ) : msg.type === 'image' && msg.payload ? (
+                      <Message.ImageContent src={msg.payload.src} width={250} />
+                  ) : msg.type === 'video' && msg.payload ? (
+                      <Message.CustomContent>
+                          <video width="300" controls> <source src={msg.payload.src} type="video/mp4" /> </video>
+                      </Message.CustomContent>
+                  ) : (
+                    <Message.TextContent text={msg.message || '[Mídia não suportada]'} />
+                  )}
+                </Message>
+              ))
+            )}
+          </MessageList>
+          {activeChat && (
+            <MessageInput
+              placeholder="Digite sua mensagem aqui..."
+              value={messageInputValue}
+              onChange={setMessageInputValue}
+              onSend={handleSendText}
+              onAttachClick={handleAttachmentClick}
+              attachButton
+            />
+          )}
+        </ChatContainer>
+      </MainContainer>
+    </div>
   );
 }
+
+export default WhatsappChatPage;

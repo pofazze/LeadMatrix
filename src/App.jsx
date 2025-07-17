@@ -7,6 +7,7 @@ import ProtectedRouteRole from './components/ProtectedRouteRole';
 import Registro from './pages/Registro';
 import Disparo from './pages/Disparo';
 import './Global.module.scss';
+import WhatsappChatPage from './pages/WhatsappChatPage';
 
 function App() {
   return (
@@ -45,6 +46,8 @@ function App() {
               </ProtectedRouteRole>
             }
           />
+
+          <Route path="/chat" element={<WhatsappChatPage />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
