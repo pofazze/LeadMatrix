@@ -1,15 +1,12 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth'; // <-- CORREÇÃO APLICADA
 
 export default function ProtectedRoute({ children }) {
   const { user, authChecked } = useAuth();
 
-  // Aguarda validação de autenticação (pode colocar spinner aqui)
-  if (!authChecked) return null;
+  if (!authChecked) return null; // Aguarda checagem
 
-  // Não logado? Redireciona pro login
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />; // Redireciona se não logado
 
-  // Logado? Renderiza o conteúdo protegido
-  return children;
+  return children; // Permite acesso
 }

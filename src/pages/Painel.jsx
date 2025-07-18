@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/UseAuth';
 import Navbar from '../components/Navbar';
 import LeadsM15 from '../components/LeadsM15';
 import PaginaDeDetalhes from '../components/PaginaDeDetalhes'; // 1. Importar o novo componente

@@ -1,28 +1,22 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth'; // <-- CORREÇÃO APLICADA
 
 export default function ProtectedRouteRole({ children, allowedRoles = [] }) {
   const { user, authChecked } = useAuth();
 
-  // Aguarda validação de autenticação (pode colocar spinner aqui)
   if (!authChecked) return null;
 
-  // Não logado? Redireciona pro login
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
-  // Garante que allowedRoles é um array de strings
   if (!Array.isArray(allowedRoles)) {
     console.error("Erro: 'allowedRoles' precisa ser um array de strings.");
-    return <Navigate to="/" replace />;
+    return <Navigate to="/painel" replace />; // Redireciona para o painel em caso de erro
   }
 
-  // Se a role não estiver permitida, redireciona pro login
   if (!allowedRoles.includes(user.role)) {
-    // Debug opcional:
-    console.warn(`[ProtectedRouteRole] Role "${user.role}" não permitida. Allowed:`, allowedRoles);
-    return <Navigate to="/" replace />;
+    console.warn(`[ProtectedRouteRole] Acesso negado. Role "${user.role}" não permitida.`);
+    return <Navigate to="/painel" replace />; // Redireciona se não tiver a role
   }
 
-  // Logado e autorizado? Renderiza o conteúdo protegido
-  return children;
+  return children; // Permite acesso
 }

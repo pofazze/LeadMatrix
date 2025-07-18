@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/UseAuth';
 import styles from './Registro.module.scss';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
