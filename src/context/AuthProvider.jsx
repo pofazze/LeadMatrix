@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthContext } from './AuthContext';
-import apiClient from '../api/apiClient';
+import apiClient from '../api/apiClient.js'; // Importação atualizada
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
