@@ -1,7 +1,7 @@
 // src/components/PaginaDeDetalhes.jsx
 
 import React from 'react';
-import styles from './PaginaDeDetalhes.module.scss';
+import styles from './PaginadeDetalhes.module.scss';
 
 // 1. Adicione as props `userRole` e `onEdit`
 function PaginaDeDetalhes({ lead, onBack, onEdit, userRole }) {
