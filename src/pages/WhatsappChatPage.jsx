@@ -12,16 +12,17 @@ import {
 const WEBSOCKET_URL = import.meta.env.PROD ? import.meta.env.VITE_WEBSOCKET_URL : '/';
 const SEU_NOME = "patrickSuyti";
 
-// Função para criar um objeto de mensagem padronizado, agora usando o messageId real
+// Função para criar um objeto de mensagem padronizado e com ID único
 const createMessageObject = (msgData) => ({
-  id: msgData.messageId, // Usando o ID real vindo do banco de dados para a key
+  id: msgData.messageId || `${Date.now()}-${Math.random()}`,
   message: msgData.content,
   sentTime: new Date(msgData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   sender: msgData.author,
   direction: msgData.author === SEU_NOME ? 'outgoing' : 'incoming',
   position: 'single',
   type: msgData.type || 'text',
-  payload: (msgData.type === 'image' || msgData.type === 'video') ? { src: msgData.url } : null
+  payload: (msgData.type === 'image' || msgData.type === 'video') ? { src: msgData.url } : null,
+  status: msgData.status
 });
 
 function WhatsappChatPage() {
@@ -32,14 +33,18 @@ function WhatsappChatPage() {
   const [messageInputValue, setMessageInputValue] = useState("");
   const [socket, setSocket] = useState(null);
   const fileInputRef = useRef(null);
-  const activeChatRef = useRef(null);
-  activeChatRef.current = activeChat;
 
   // Efeito 1: Conectar ao WebSocket
   useEffect(() => {
     const socketInstance = io(WEBSOCKET_URL);
     setSocket(socketInstance);
-    return () => socketInstance.close();
+    socketInstance.on('connect', () => {
+      console.log(`%c[Socket] Conectado com sucesso. ID: ${socketInstance.id}`, 'color: green; font-weight: bold;');
+    });
+    return () => {
+      console.log("[Socket] Desconectando.");
+      socketInstance.close();
+    };
   }, []);
 
   // Efeito 2: Buscar conversas iniciais
@@ -59,22 +64,35 @@ function WhatsappChatPage() {
     };
     fetchConversations();
   }, []);
-
-  // Efeito 3: Configurar o listener do socket para novas mensagens
-  useEffect(() => {
-    if (!socket) return;
-    const handleNewMessage = (payload) => {
-      const currentActiveChat = activeChatRef.current;
+  
+  // Função dedicada para atualizar o estado, para ser usada no listener
+  const addNewMessageToState = (payload) => {
+    // Usamos uma função no setActiveChat para pegar o valor mais recente
+    setActiveChat(currentActiveChat => {
       if (currentActiveChat && `conversa-${currentActiveChat.whatsappNumber}` === payload.channel) {
         const novaMensagem = createMessageObject(payload.data);
         setMessages(prevMessages => [...prevMessages, novaMensagem]);
       }
+      return currentActiveChat; // Retorna o estado inalterado
+    });
+  };
+  
+  // Efeito 3: Configurar o listener do socket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (payload) => {
+      console.log('%c[EVENTO EM TEMPO REAL RECEBIDO]', 'color: blue; font-size: 16px; font-weight: bold;', payload);
+      addNewMessageToState(payload);
     };
+    
     socket.on('nova-mensagem', handleNewMessage);
-    return () => socket.off('nova-mensagem', handleNewMessage);
+    
+    return () => {
+      socket.off('nova-mensagem', handleNewMessage);
+    };
   }, [socket]);
 
-  // Função para quando o usuário clica em uma conversa
   const handleConversationClick = async (convo) => {
     setActiveChat(convo);
     if (socket) {
@@ -91,7 +109,6 @@ function WhatsappChatPage() {
     } catch (error) { console.error("Erro ao buscar histórico:", error); }
   };
   
-  // Função para enviar uma MENSAGEM DE TEXTO
   const handleSendText = async (text) => {
     if (!activeChat || !text.trim()) return;
     const payload = { phone: activeChat.whatsappNumber, message: text };
@@ -101,13 +118,11 @@ function WhatsappChatPage() {
     } catch (error) { console.error("Erro ao chamar webhook de envio:", error); }
   };
 
-  // Função para lidar com o clique no botão de anexo
   const handleAttachmentClick = () => {
     if (!activeChat) return;
     fileInputRef.current.click();
   };
 
-  // Função para enviar um ARQUIVO DE MÍDIA
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (!file || !activeChat) return;
@@ -117,7 +132,7 @@ function WhatsappChatPage() {
     try {
       await apiClient.post('/webhook/send-media-message', formData);
     } catch (error) { console.error("Erro ao enviar mídia:", error); }
-    event.target.value = null; // Limpa o input
+    event.target.value = null;
   };
 
   return (
