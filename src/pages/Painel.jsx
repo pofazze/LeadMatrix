@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/UseAuth';
 import Navbar from '../components/Navbar';
 import LeadsM15 from '../components/LeadsM15';
-import PaginaDeDetalhes from '../components/PaginaDeDetalhes';
+import PaginaDeDetalhes from '../components/PaginadeDetalhes';
 import styles from './Painel.module.scss';
 import { useState, useEffect } from 'react';
 import apiClient from '../api/apiClient'; // Importação atualizada
