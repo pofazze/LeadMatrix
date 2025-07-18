@@ -1,7 +1,7 @@
 import { useContext } from 'react';
-// Importa o AuthContext do novo arquivo dedicado
 import { AuthContext } from '../context/AuthContext';
 
+// Hook customizado para consumir o contexto de forma limpa.
 export function useAuth() {
   return useContext(AuthContext);
 }

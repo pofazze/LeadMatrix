@@ -1,67 +1,58 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-// 1. Importa o AuthContext do arquivo separado
+import React, { useState, useEffect, useCallback } from 'react';
 import { AuthContext } from './AuthContext';
+import apiClient from '../api/apiClient';
 
-// 2. Apenas o componente é exportado deste arquivo
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  useEffect(() => {
+  const verifyUser = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      axios.get('/webhook/me')
-        .then(res => {
-          const data = Array.isArray(res.data) ? res.data[0] : res.data;
-          setUser({
-            id: data.id,
-            usuario: data.usuario,
-            role: data.role || 'user',
-            gender: data.gender,
-            project: data.project,
-            whatsapp: data.whatsapp,
-            iat: data.iat,
-          });
-        })
-        .catch(() => setUser(null))
-        .finally(() => setAuthChecked(true));
-    } else {
-      setAuthChecked(true);
+      try {
+        const res = await apiClient.get('/webhook/me');
+        const data = Array.isArray(res.data) ? res.data[0] : res.data;
+        setUser({
+          id: data.id,
+          usuario: data.usuario,
+          role: data.role || 'user',
+          gender: data.gender,
+          project: data.project,
+          whatsapp: data.whatsapp,
+          iat: data.iat,
+        });
+      } catch (error) {
+        console.error("Falha na verificação do token:", error);
+        localStorage.removeItem('token');
+        setUser(null);
+      }
     }
+    setAuthChecked(true);
   }, []);
 
+  useEffect(() => {
+    verifyUser();
+  }, [verifyUser]);
+
   const login = async (usuario, senha) => {
-    const res = await axios.post('/webhook/panelauth', { usuario, senha });
+    const res = await apiClient.post('/webhook/panelauth', { usuario, senha });
     if (!res.data.success || !res.data.token) {
       throw new Error(res.data.message || 'Login falhou');
     }
     localStorage.setItem('token', res.data.token);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-    const meRes = await axios.get('/webhook/me');
-    const data = Array.isArray(meRes.data) ? meRes.data[0] : meRes.data;
-    setUser({
-      id: data.id,
-      usuario: data.usuario,
-      role: data.role || 'user',
-      gender: data.gender,
-      project: data.project,
-      whatsapp: data.whatsapp,
-      iat: data.iat,
-    });
-    setAuthChecked(true);
+    await verifyUser(); // Re-verifica o usuário para atualizar o estado
   };
 
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };
 
+  const value = { user, authChecked, login, logout };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, authChecked }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {authChecked ? children : null /* Pode substituir por um spinner de carregamento global */}
     </AuthContext.Provider>
   );
 }

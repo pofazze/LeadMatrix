@@ -1,4 +1,4 @@
 import { createContext } from 'react';
 
-// Este arquivo tem UMA ÚNICA responsabilidade: criar e exportar o contexto.
+// Arquivo minimalista que apenas cria e exporta o contexto.
 export const AuthContext = createContext(null);
