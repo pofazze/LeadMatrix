@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import apiClient from '../api/apiClient';
+import Popup from '../components/Popup';
+import { AlertTriangle } from "lucide-react";
+import Navbar from '../components/Navbar';
+
+
 
 import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 import {
@@ -134,9 +139,12 @@ function WhatsappChatPage() {
     } catch (error) { console.error("Erro ao enviar mídia:", error); }
     event.target.value = null;
   };
+    const [open, setOpen] = useState(true);
 
   return (
-    <div style={{ height: 'calc(100vh - 60px)', position: 'relative' }}>
+    <>
+    <div><Navbar style={{position:"relative"}}/></div>
+    <div style={{ height: '100vh', position: 'relative' }}>
       <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*,video/*" />
       <MainContainer responsive>
         <Sidebar position="left" scrollable>
@@ -196,7 +204,17 @@ function WhatsappChatPage() {
           )}
         </ChatContainer>
       </MainContainer>
+
+       <Popup
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Atenção"
+        message="A função de chat está em modo beta, por isso alguns bugs irão aparecer."
+        buttonText="Entendi, prosseguir"
+        icon={<AlertTriangle className="w-8 h-8 text-red-500" />}
+      />
     </div>
+    </>
   );
 }
 

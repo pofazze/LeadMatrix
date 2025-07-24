@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
 import apiClient from "../api/apiClient";
-import styles from "./WhatsAppForm.module.scss";
+import styles from "./DisparoWPP.module.scss";
 import { useAuth } from "../hooks/UseAuth"; // mantenha se ainda precisar do token
 
-export default function WhatsAppForm() {
+export default function DisparoWPP() {
   const webhookURL = "/webhook/disparom15";
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");

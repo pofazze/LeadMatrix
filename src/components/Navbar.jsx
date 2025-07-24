@@ -22,15 +22,13 @@ export default function Navbar() {
         <div className={styles.brand}>LeadMatrix</div>
       </Link>
 
-      <div>
-        {user && (
+      <div style={{ display: 'flex', flexFlow: 'row nowrap', alignItems: 'center', gap: '1em' }}>
+        {/* {user && (
           <span style={{ marginRight: 12 }}>
             {user.usuario} {user.gender ? `(${user.gender})` : ''}
           </span>
-        )}
-        <button onClick={handleLogout} className={styles.button}>
-          Sair
-        </button>
+        )} */}
+
         {canRegister && (
           <Link to="/registro" className={styles.link}>
             Registrar usuário
@@ -41,6 +39,15 @@ export default function Navbar() {
             Disparar mensagens
           </Link>
         )}
+        {canRegister && (
+          <Link to="/chat" className={styles.link}>
+            Chat
+          </Link>
+        )}
+
+        <button onClick={handleLogout} className={styles.button}>
+          Sair
+        </button>
       </div>
     </nav>
   );

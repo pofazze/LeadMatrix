@@ -9,6 +9,7 @@ import Registro from './pages/Registro';
 import Disparo from './pages/Disparo';
 import './Global.module.scss';
 import WhatsappChatPage from './pages/WhatsappChatPage';
+import './App.css';
 
 function App() {
   return (

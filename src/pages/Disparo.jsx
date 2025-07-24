@@ -1,5 +1,5 @@
 import React from "react";
-import WhatsAppForm from "../components/WhatsAppForm";
+import DisparoWPP from "../components/DisparoWPP";
 import Navbar from "../components/Navbar";
 
 export default function Disparo() {
@@ -8,7 +8,7 @@ export default function Disparo() {
       <Navbar />
       <div style={{ maxWidth: 500, margin: "0 auto" }}>
         <h2>Disparo de Mensagens</h2>
-        <WhatsAppForm />
+        <DisparoWPP />
       </div>
     </>
   );
