@@ -19,6 +19,7 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
   const [cidadeFiltro, setCidadeFiltro] = useState('');
   const [canalFiltro, setCanalFiltro] = useState('');
   const [edicaoFiltro, setEdicaoFiltro] = useState('');
+  const [gestorFiltro, setGestorFiltro] = useState('');
   const [viewMode, setViewMode] = useState('table');
   
   // Estado e lógica para o dropdown de exportação
@@ -57,17 +58,41 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
     [leads]
   );
 
-  // Memoização para filtrar os leads com base nos estados dos filtros
+  // Lógica atualizada para criar uma lista de gestores únicos e normalizados
+  const gestoresUnicos = useMemo(() => {
+    const gestorMap = new Map();
+    leads.forEach(lead => {
+      const gestorOriginal = lead.canaldeaquisicao?.nomeDoGestor;
+      // Verifica se o gestor existe e não é apenas uma string de espaços
+      if (gestorOriginal && gestorOriginal.trim()) {
+        const gestorNormalizado = gestorOriginal.trim().toLowerCase();
+        if (!gestorMap.has(gestorNormalizado)) {
+          // Armazena a versão normalizada como chave e a primeira versão original (sem espaços) como valor
+          gestorMap.set(gestorNormalizado, gestorOriginal.trim());
+        }
+      }
+    });
+    return Array.from(gestorMap.values()).sort();
+  }, [leads]);
+
+  // Lógica de filtragem atualizada para usar a normalização
   const leadsFiltrados = useMemo(() =>
     leads.filter(lead => {
       const cidade = lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra
         ? lead.cidade.seOutra
         : lead.cidade?.cidade;
+      
+      const gestorDoLead = lead.canaldeaquisicao?.nomeDoGestor;
+
+      // Comparação normalizada: compara o valor do lead (normalizado) com o valor do filtro (normalizado)
+      const gestorPassaFiltro = !gestorFiltro || (gestorDoLead && gestorDoLead.trim().toLowerCase() === gestorFiltro.toLowerCase());
+
       return (!cidadeFiltro || cidade === cidadeFiltro)
         && (!canalFiltro || lead.canaldeaquisicao?.origem === canalFiltro)
-        && (!edicaoFiltro || lead.edicao === edicaoFiltro);
+        && (!edicaoFiltro || lead.edicao === edicaoFiltro)
+        && gestorPassaFiltro;
     }),
-    [leads, cidadeFiltro, canalFiltro, edicaoFiltro]
+    [leads, cidadeFiltro, canalFiltro, edicaoFiltro, gestorFiltro]
   );
 
   // Função para exportar os dados filtrados para CSV ou Excel
@@ -81,6 +106,8 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
         ? lead.cidade.seOutra
         : lead.cidade?.cidade || '-',
       'Canal de aquisição': lead.canaldeaquisicao?.origem || '-',
+      // Limpa os dados do gestor na exportação também
+      'Nome do Gestor': lead.canaldeaquisicao?.nomeDoGestor?.trim() || '-',
     }));
 
     if (formato === 'csv') {
@@ -97,7 +124,7 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
       saveAs(blob, 'leads_filtrados.xlsx');
     }
-    setExportMenuOpen(false); // Fecha o menu após a exportação
+    setExportMenuOpen(false);
   };
 
   // Definição das colunas para a tabela
@@ -116,6 +143,11 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
     {
       header: 'Canal de aquisição',
       accessorFn: row => row.canaldeaquisicao?.origem || '-',
+    },
+    {
+      header: 'Nome do Gestor',
+      // Limpa o dado para exibição na tabela também
+      accessorFn: row => row.canaldeaquisicao?.nomeDoGestor?.trim() || '-',
     },
     {
       header: 'Ações',
@@ -157,6 +189,12 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
           value={edicaoFiltro}
           options={edicoesUnicas}
           onSelect={setEdicaoFiltro}
+        />
+        <CustomDropdown
+          label="Gestor"
+          value={gestorFiltro}
+          options={gestoresUnicos}
+          onSelect={setGestorFiltro}
         />
 
         {/* Dropdown de Exportação */}
@@ -237,6 +275,7 @@ function LeadsM15({ leads = [], onEdit, onView, onSendMessage }) {
                   <div><b>Cidade:</b> {cidade || '-'}</div>
                   <div><b>Edição:</b> {lead.edicao || '-'}</div>
                   <div><b>Canal:</b> {lead.canaldeaquisicao?.origem || '-'}</div>
+                  <div><b>Gestor:</b> {lead.canaldeaquisicao?.nomeDoGestor?.trim() || '-'}</div>
                   <div><b>WhatsApp:</b> {lead.whatsappNumber || '-'}</div>
                   <div><b>Email:</b> {lead.email || '-'}</div>
                 </div>

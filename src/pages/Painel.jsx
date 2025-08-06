@@ -4,7 +4,7 @@ import LeadsM15 from '../components/LeadsM15';
 import PaginaDeDetalhes from '../components/PaginadeDetalhes';
 import styles from './Painel.module.scss';
 import { useState, useEffect } from 'react';
-import apiClient from '../api/apiClient'; // Importação atualizada
+import apiClient from '../api/apiClient';
 
 export default function Painel() {
   const { user } = useAuth();
@@ -15,11 +15,24 @@ export default function Painel() {
   useEffect(() => {
     if (user && ['m15', 'admin'].includes(user.project?.toLowerCase())) {
       setLoading(true);
-      // Chamada atualizada para apiClient
       apiClient.get('/webhook/getLeadsM15')
-        .then(res => setLeads(Array.isArray(res.data) ? res.data : []))
+        .then(res => {
+          // --- LÓGICA DE EXTRAÇÃO DE DADOS ATUALIZADA E MAIS SEGURA ---
+          let dadosDosLeads = [];
+          if (Array.isArray(res.data)) {
+            // Verifica se a estrutura é [{ data: [...] }]
+            if (res.data.length > 0 && res.data[0] && Array.isArray(res.data[0].data)) {
+              dadosDosLeads = res.data[0].data;
+            } else {
+              // Se não for, assume que a estrutura é [...] (a própria lista de leads)
+              dadosDosLeads = res.data;
+            }
+          }
+          setLeads(dadosDosLeads);
+        })
         .catch((err) => {
             console.error("Erro ao buscar leads:", err);
+            // Garante que 'leads' seja sempre um array em caso de erro
             setLeads([]);
         })
         .finally(() => setLoading(false));
@@ -56,6 +69,7 @@ export default function Painel() {
             {loading ? (
               <div style={{ padding: '16px 20px' }}>Carregando leads...</div>
             ) : (
+              // O componente LeadsM15 agora receberá um array, mesmo que vazio.
               <LeadsM15
                 leads={leads}
                 userRole={user?.role}
