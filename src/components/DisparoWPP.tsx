@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import axios from 'axios';
 import apiClient from '../api/apiClient';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks/UseAuth';
@@ -46,6 +47,17 @@ export default function DisparoWPP() {
 }
 
 function DisparoForm({ title, defaultInstance, socket, connected = false, phoneNumber }: { title: string; defaultInstance: 'whatsapp1' | 'whatsapp2'; socket: React.MutableRefObject<Socket | null>; connected?: boolean; phoneNumber?: string | null; }) {
+  const [collections, setCollections] = useState<string[]>([]);
+  const [selectedCollection, setSelectedCollection] = useState<string>('');
+  // Buscar coleções disponíveis ao montar
+  useEffect(() => {
+    axios.get('/api/collections', { validateStatus: () => true })
+      .then(res => {
+        let allowed = res.data.collections || [];
+        setCollections(allowed);
+        if (allowed.length > 0) setSelectedCollection(allowed[0]);
+      });
+  }, []);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('');
   type StatusKind = 'idle' | 'started' | 'running' | 'paused' | 'completed' | 'canceled' | 'error';
@@ -248,6 +260,7 @@ function DisparoForm({ title, defaultInstance, socket, connected = false, phoneN
       if (userName) payload.userName = userName;
       if (mediaType === 'image' && image) payload.mediaBase64 = image;
       if (mediaType === 'video' && video) payload.mediaBase64 = video;
+      if (selectedCollection) payload.collection = selectedCollection;
       const r = await apiClient.post('/api/disparo/start', payload);
       setRunId(r.data.runId);
       setStatus('Disparo iniciado');
@@ -300,6 +313,14 @@ function DisparoForm({ title, defaultInstance, socket, connected = false, phoneN
       )}
 
       <fieldset disabled={disabledAll} style={{display: 'flex', flexFlow: 'column nowrap', gap: '1rem'}} className={disabledAll ? 'opacity-60 pointer-events-none select-none' : ''}>
+        <div className="mb-1 gap-2 flex flex-row align-center">
+          <label className="font-semibold text-red-200">Coleção para disparo:</label>
+          <select className="ml-2 rounded-md border border-red-900 bg-[#1d0a0d] px-2 py-1 text-sm text-red-100" value={selectedCollection} onChange={e => setSelectedCollection(e.target.value)}>
+            {collections.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        </div>
         <div style={{display: 'flex', flexFlow: 'row wrap', gap: '.5rem'}}>
           <label className="font-semibold text-red-200">Mensagem:</label>
           <div className="mb-2 flex items-center gap-2 text-sm text-red-200">

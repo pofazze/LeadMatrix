@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/UseAuth';
 import { useNavigate } from 'react-router-dom';
 import WhatsappConnect from '../components/WhatsappConnect';
 import DisparoWPP from '../components/DisparoWPP';
-import ViewLeads from '../components/viewleads';
+import LeadsManager from '../components/LeadsManager';
 import PaginaDeDetalhes from '../components/PaginadeDetalhes';
 import apiClient from '../api/apiClient';
 import { io, Socket } from 'socket.io-client';
@@ -11,75 +11,7 @@ import WhatsappChat from '../components/WhatsappChat';
 
 // Painel inline: busca leads e exibe ViewLeads + detalhes
 function TabPainel() {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [leadParaVisualizar, setLeadParaVisualizar] = useState<any | null>(null);
-
-  useEffect(() => {
-    let socket: Socket | null = null;
-    setLoading(true);
-    apiClient.get('/api/leads')
-      .then(res => {
-        const items = Array.isArray(res.data?.items) ? res.data.items : Array.isArray(res.data) ? res.data : [];
-        setLeads(items);
-      })
-      .catch(() => setLeads([]))
-      .finally(() => setLoading(false));
-
-    try {
-  const base = (import.meta as any).env.VITE_API_BASE_URL || 'http://localhost:4000';
-  const socketPath = (import.meta as any).env.VITE_SOCKET_PATH || '/socket.io';
-  socket = io(base, { path: socketPath, transports: ['websocket'], withCredentials: true });
-      socket.on('connect', () => { socket?.emit('join', { room: 'leads' }); });
-      socket.on('leads:update', (payload: any) => {
-        if (Array.isArray(payload?.items)) {
-          setLeads(payload.items);
-        } else if (payload?.op && payload?.doc) {
-          setLeads(prev => {
-            const id = (payload.doc._id?.$oid || payload.doc._id);
-            const idx = prev.findIndex((x: any) => (x._id?.$oid || x._id) === id);
-            if (payload.op === 'insert') return [payload.doc, ...prev];
-            if (payload.op === 'update' && idx >= 0) {
-              const copy = prev.slice();
-              copy[idx] = { ...prev[idx], ...payload.doc };
-              return copy;
-            }
-            if (payload.op === 'delete' && idx >= 0) return prev.filter((_, i) => i !== idx);
-            return prev;
-          });
-        }
-      });
-    } catch {}
-
-    return () => { socket?.disconnect(); };
-  }, []);
-
-  const handleEdit = (lead: any) => { console.log('editar', lead); };
-
-  if (leadParaVisualizar) {
-    return (
-      <PaginaDeDetalhes
-        lead={leadParaVisualizar}
-        onBack={() => setLeadParaVisualizar(null)}
-        onEdit={handleEdit}
-      />
-    );
-  }
-
-  return (
-    <div>
-      {loading ? (
-        <div className="px-5 py-4">Carregando leads...</div>
-      ) : (
-        <ViewLeads
-          leads={leads as any[]}
-          onView={(lead: any) => setLeadParaVisualizar(lead)}
-          onEdit={handleEdit}
-          onSendMessage={(lead: any) => { /* envio de mensagem */ }}
-        />
-      )}
-    </div>
-  );
+  return <LeadsManager />;
 }
 
 function TabDisparo() {
