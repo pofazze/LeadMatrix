@@ -1,3 +1,2 @@
-a {
-  color: white;
-}
+/* Keep minimal overrides; colors are defined via SCSS theme and Tailwind */
+a { text-decoration: none; }

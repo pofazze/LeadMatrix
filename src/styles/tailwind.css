@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Design tokens layered in CSS variables so SCSS can use them too */
+:root {
+  --color-bg: 0 0 0;      /* black */
+  --color-fg: 229 231 235; /* light text */
+}
+
+/* Avoid @apply until Tailwind v4 reference is stabilized */
+/* Basic sensible defaults without utilities to prevent build errors */
+html, body, #root { height: 100%; }
+body { background-color: rgb(var(--color-bg)); color: rgb(var(--color-fg)); }
+
+/* Primitives */
+.card {
+  border-radius: 12px;
+  background-color: #0f0f12;
+  border: 1px solid #262626;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02), 0 12px 30px rgba(0,0,0,0.35);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  color: #e5e7eb;
+  border: 1px solid transparent;
+}
+.btn-primary { background-color: #dc2626; color: #fff; }
+.btn-primary:hover { background-color: #b91c1c; }
+.btn-ghost { background-color: transparent; color: #cbd5e1; }
+.btn-ghost:hover { background-color: rgba(255,255,255,0.06); color: #fff; }
+.btn-outline { border-color: #262626; background-color: transparent; }
+.btn-outline:hover { background-color: rgba(255,255,255,0.06); }
+
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #262626;
+  background-color: rgba(0,0,0,0.4);
+  padding: 0.5rem 0.75rem;
+  color: #e5e7eb;
+}
+.input::placeholder { color: #9ca3af; }
+.input:focus { outline: none; box-shadow: 0 0 0 2px rgba(220,38,38,0.35); border-color: #dc2626; }

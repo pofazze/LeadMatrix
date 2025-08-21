@@ -1,67 +1,18 @@
-.bg {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+@use '../styles/theme' as *;
 
-.form {
-  width: 45vw;
-  padding: 32px;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
+.bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: $bg-0; }
 
-.title {
-  text-align: center;
-  margin-bottom: 16px;
-  font-weight: 700;
-  color: #1a202c;
-}
+.form { width: 45vw; padding: 32px; border-radius: 16px; @include card; display: flex; flex-direction: column; gap: 18px; }
 
-.input {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  font-size: 16px;
-}
+.title { text-align: center; margin-bottom: 16px; font-weight: 700; color: $text; }
 
-.button {
-  background: #2563eb;
-  color: #fff;
-  padding: 12px 0;
-  border: none;
-  border-radius: 8px;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.2s;
+.input { @include input-base; font-size: 16px; }
 
-  &:hover:enabled {
-    background: #1e40af;
-  }
+.button { @include button-primary; padding: 12px 0; font-size: 16px; }
 
-  &:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-}
+.error { color: $danger; text-align: center; font-size: 14px; }
 
-.error {
-  color: #e53e3e;
-  text-align: center;
-  font-size: 14px;
-}
-
-.success {
-  color: #059669;
-  text-align: center;
-  font-size: 14px;
-}
+.success { color: $success; text-align: center; font-size: 14px; }
 
 .inputgroup {
   display: flex;

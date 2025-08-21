@@ -1,0 +1,55 @@
+// Dark theme palette and tokens
+$bg-0: #000000; // app background (black)
+$bg-1: #0a0a0a; // elevated background
+$surface: #111111; // cards/panels
+$border: #222222; // borders/dividers
+$text: #e5e7eb; // primary text
+$text-muted: #9ca3af; // secondary text
+$primary: #dc2626; // red-600 buttons
+$primary-600: #b91c1c; // hover/darker
+$primary-700: #991b1b;
+$success: #10b981;
+$warning: #f59e0b;
+$danger: #ef4444;
+
+// Shared mixins
+@mixin card {
+  border-radius: 12px;
+  background: $bg-1;
+  border: 1px solid $border;
+}
+
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  border: 1px solid transparent;
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: $primary;
+  color: #fff;
+  &:hover { background: $primary-600; }
+}
+
+@mixin button-ghost {
+  @include button-base;
+  background: transparent;
+  color: $text;
+  border-color: $border;
+  &:hover { background: $surface; }
+}
+
+@mixin input-base {
+  background: $surface;
+  border: 1px solid $border;
+  color: $text;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
