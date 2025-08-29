@@ -35,7 +35,7 @@ export default function WhatsappConnect({ embed = false }: Props) {
 		};
 		fetchOnce();
 		t = setInterval(fetchOnce, 15000);
-		return () => { s.off('zapi:status', onStatus); s.disconnect(); };
+		return () => { s.off('zapi:status', onStatus); s.disconnect(); clearInterval(t); };
 	}, []);
 
 	return (
@@ -270,30 +270,5 @@ function ConnectCard({ instance, live }: { instance: 'whatsapp1'|'whatsapp2'; li
 				</div>
 			</div>
 		</motion.div>
-	);
-}
-
-						</div>
-					</div>
-				) : qr?.imageBase64 ? (
-					<img src={qr.imageBase64} alt="QR" className="w-[280px] h-[280px] border border-gray-800" />
-				) : (
-					<div className="w-[280px] h-[280px] border border-dashed border-gray-700 flex items-center justify-center text-gray-400">
-						{qr ? 'Sem imagem, tente novamente' : 'Carregando...'}
-					</div>
-				)}
-				<div className="text-xs text-gray-400 mt-2">
-					{isConnected ? 'Dispositivo conectado.' : 'O QR expira em ~20s, atualizamos a cada 15s automaticamente.'}
-				</div>
-				<div className="mt-3">
-					<button className="rounded bg-zinc-800 px-3 py-1 text-sm hover:bg-zinc-700" onClick={async () => {
-						const phone = window.prompt('Digite o número (com DDI/DDD)');
-						if (!phone) return;
-						const data = await ZapiApi.getPhoneCode(instance, phone);
-						window.alert(`Código: ${data?.code ?? JSON.stringify(data)}`);
-					}}>Código por telefone</button>
-				</div>
-			</div>
-		</div>
 	);
 }
