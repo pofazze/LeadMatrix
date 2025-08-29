@@ -491,6 +491,10 @@ function DisparoForm({ title, defaultInstance, socket, connected = false, phoneN
                 className="text-blue-500"
               />
               <span className="text-sm text-slate-300">Não enviar duplicatas</span>
+            </motion.label>
+          </div>
+        </div>
+        
         {/* Upload de mídia */}
         <AnimatePresence>
           {mediaType === 'image' && (
