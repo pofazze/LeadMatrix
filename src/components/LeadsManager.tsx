@@ -149,7 +149,7 @@ export default function LeadsManager() {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
       
       {/* Conteúdo principal */}
       <AnimatePresence mode="wait">

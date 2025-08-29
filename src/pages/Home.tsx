@@ -110,7 +110,7 @@ export default function Home() {
               LeadMatrix
             </h1>
             <div className="w-16 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 mx-auto mt-2"></div>
-          </div>
+          </motion.div>
           <nav className="space-y-2">
             <motion.button 
               whileHover={{ scale: 1.02, x: 4 }}
@@ -200,7 +200,7 @@ export default function Home() {
                 >
                   <LogOut className="w-4 h-4 mr-3" />
                   Sair
-                </button>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
