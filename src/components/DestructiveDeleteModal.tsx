@@ -127,9 +127,3 @@ export default function DestructiveDeleteModal({ open, onClose, onConfirm, colle
     </AnimatePresence>
   );
 }
-
-        </div>
-      </div>
-    </div>
-  );
-}
