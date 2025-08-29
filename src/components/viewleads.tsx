@@ -232,7 +232,7 @@ export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }:
 						</motion.div>
 					)}
 				</AnimatePresence>
-			</div>
+			</motion.div>
 
 			{/* Conteúdo principal */}
 			<AnimatePresence mode="wait">
@@ -385,10 +385,6 @@ export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }:
 					</motion.div>
 				)}
 			</AnimatePresence>
-		</motion.div>
-	);
-}
-
 
 			{viewMode === 'mini' && (
 				<div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
@@ -422,6 +418,6 @@ export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }:
 					{!leadsFiltrados.length && <div className="my-8 w-full text-center text-slate-400">Nenhum lead encontrado</div>}
 				</div>
 			)}
-		</div>
+		</motion.div>
 	);
 }
