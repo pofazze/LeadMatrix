@@ -132,7 +132,7 @@ export default function Login() {
             className="text-center mt-8 text-gray-500 text-sm"
           >
             © {new Date().getFullYear()} LeadMatrix - Tecnologia Avançada
-          </motion.div>
+          </div>
         </motion.div>
       </motion.div>
 
@@ -203,7 +203,7 @@ export default function Login() {
             </p>
           </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
