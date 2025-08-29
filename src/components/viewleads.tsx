@@ -1,10 +1,12 @@
 import { useMemo, useState, Fragment } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useReactTable, getCoreRowModel, flexRender, ColumnDef } from '@tanstack/react-table';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { Popover, Transition } from '@headlessui/react';
 import CustomDropdown from './CustomDropdown';
+import { Download, Grid3X3, List, Eye, Edit, MessageCircle, Filter, X } from 'lucide-react';
 
 export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }: { leads: any[]; onEdit?: (lead: any) => void; onView?: (lead: any) => void; onSendMessage?: (lead: any) => void; }) {
 	const [cidadeFiltro, setCidadeFiltro] = useState('');
@@ -14,6 +16,7 @@ export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }:
 	const [viewMode, setViewMode] = useState<'table' | 'mini'>('table');
 
 	const [isExportMenuOpen, setExportMenuOpen] = useState(false);
+	const [showFilters, setShowFilters] = useState(false);
 	let exportTimeout: any;
 	const handleExportMenuEnter = () => { clearTimeout(exportTimeout); setExportMenuOpen(true); };
 	const handleExportMenuLeave = () => { exportTimeout = setTimeout(() => setExportMenuOpen(false), 200); };
@@ -123,76 +126,269 @@ export default function ViewLeads({ leads = [], onEdit, onView, onSendMessage }:
 	const table = useReactTable({ data: leadsFiltrados, columns, getCoreRowModel: getCoreRowModel() });
 
 	return (
-		<div className="p-1 font-sans flex flex-col flex-nowrap gap-5">
-			<div className="mb-5 card p-4 flex flex-col flex-nowrap gap-3">
-				<div className="flex flex-wrap items-center justify-between gap-3 z-40">
-					<div className="flex flex-wrap items-center gap-3">
-						<CustomDropdown label="Cidade" value={cidadeFiltro} options={cidadesUnicas} onSelect={setCidadeFiltro} />
-						<CustomDropdown label="Canal" value={canalFiltro} options={canaisUnicos} onSelect={setCanalFiltro} />
-						<CustomDropdown label="Edição" value={edicaoFiltro} options={edicoesUnicas} onSelect={setEdicaoFiltro} />
-						<CustomDropdown label="Gestor" value={gestorFiltro} options={gestoresUnicos} onSelect={setGestorFiltro} />
-						<div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-							<div className="text-sm text-slate-400">Mostrando <span className="text-slate-200 font-medium">{leadsFiltrados.length}</span> de <span className="text-slate-200 font-medium">{leads.length}</span> leads</div>
-							{([cidadeFiltro, canalFiltro, edicaoFiltro, gestorFiltro].some(Boolean)) && (
-								<button className="btn btn-ghost" onClick={clearFilters}>Limpar filtros</button>
-							)}
+		<motion.div 
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			className="font-sans flex flex-col gap-6"
+		>
+			{/* Header com controles */}
+			<motion.div 
+				initial={{ y: -20, opacity: 0 }}
+				animate={{ y: 0, opacity: 1 }}
+				className="card p-6"
+			>
+				<div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+					<div className="flex items-center gap-4">
+						<motion.button
+							whileHover={{ scale: 1.05 }}
+							whileTap={{ scale: 0.95 }}
+							onClick={() => setShowFilters(!showFilters)}
+							className={`btn ${showFilters ? 'btn-primary' : 'btn-ghost'}`}
+						>
+							<Filter className="w-4 h-4 mr-2" />
+							Filtros
+						</motion.button>
+						
+						<div className="text-sm text-slate-400 flex items-center gap-2">
+							<span className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>
+							Mostrando <span className="text-blue-400 font-medium">{leadsFiltrados.length}</span> de <span className="text-slate-200 font-medium">{leads.length}</span> leads
 						</div>
 					</div>
+					
 					<div className="flex items-center gap-2">
 						<Popover className="relative inline-block">
 							<div onMouseEnter={handleExportMenuEnter} onMouseLeave={handleExportMenuLeave}>
-								<Popover.Button as="div" className="btn btn-primary cursor-pointer select-none inline-flex">
-									Baixar Planilha
-									<i className="fa-solid fa-chevron-down ml-2" aria-hidden="true"></i>
+								<Popover.Button as="div" className="btn btn-primary cursor-pointer select-none inline-flex items-center">
+									<Download className="w-4 h-4 mr-2" />
+									Exportar
 								</Popover.Button>
 								<Transition show={isExportMenuOpen} as={Fragment} enter="transition ease-out duration-200" enterFrom="opacity-0 translate-y-1" enterTo="opacity-100 translate-y-0" leave="transition ease-in duration-150" leaveFrom="opacity-100 translate-y-0" leaveTo="opacity-0 translate-y-1">
-									<Popover.Panel static className="absolute right-0 z-10 mt-2 w-44 rounded-md border border-zinc-800 bg-zinc-950">
-										<div className="rounded-md border border-zinc-800 bg-zinc-950 p-1">
-											<button className="w-full rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-zinc-900" onClick={() => exportarPlanilha('csv')}>CSV</button>
-											<button className="w-full rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-zinc-900" onClick={() => exportarPlanilha('excel')}>Excel (.xlsx)</button>
+									<Popover.Panel static className="absolute right-0 z-10 mt-2 w-44 modal-content rounded-lg">
+										<div className="p-2">
+											<motion.button 
+												whileHover={{ scale: 1.02, x: 4 }}
+												className="w-full rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-blue-500/20" 
+												onClick={() => exportarPlanilha('csv')}
+											>
+												CSV
+											</motion.button>
+											<motion.button 
+												whileHover={{ scale: 1.02, x: 4 }}
+												className="w-full rounded px-3 py-2 text-left text-sm text-slate-200 hover:bg-blue-500/20" 
+												onClick={() => exportarPlanilha('excel')}
+											>
+												Excel (.xlsx)
+											</motion.button>
 										</div>
 									</Popover.Panel>
 								</Transition>
 							</div>
 						</Popover>
-						<button className="btn btn-outline" onClick={() => setViewMode(viewMode === 'table' ? 'mini' : 'table')}>
-							{viewMode === 'table' ? 'Tabela' : 'Miniaturas'}
-						</button>
+						
+						<motion.button 
+							whileHover={{ scale: 1.05 }}
+							whileTap={{ scale: 0.95 }}
+							className="btn btn-outline" 
+							onClick={() => setViewMode(viewMode === 'table' ? 'mini' : 'table')}
+						>
+							{viewMode === 'table' ? (
+								<><Grid3X3 className="w-4 h-4 mr-2" />Cards</>
+							) : (
+								<><List className="w-4 h-4 mr-2" />Tabela</>
+							)}
+						</motion.button>
 					</div>
 				</div>
 
+				{/* Filtros expansíveis */}
+				<AnimatePresence>
+					{showFilters && (
+						<motion.div
+							initial={{ height: 0, opacity: 0 }}
+							animate={{ height: 'auto', opacity: 1 }}
+							exit={{ height: 0, opacity: 0 }}
+							className="overflow-hidden"
+						>
+							<div className="pt-4 border-t border-blue-500/20">
+								<div className="flex flex-wrap items-center gap-3 mb-4">
+									<CustomDropdown label="Cidade" value={cidadeFiltro} options={cidadesUnicas} onSelect={setCidadeFiltro} />
+									<CustomDropdown label="Canal" value={canalFiltro} options={canaisUnicos} onSelect={setCanalFiltro} />
+									<CustomDropdown label="Edição" value={edicaoFiltro} options={edicoesUnicas} onSelect={setEdicaoFiltro} />
+									<CustomDropdown label="Gestor" value={gestorFiltro} options={gestoresUnicos} onSelect={setGestorFiltro} />
+								</div>
+								
+								{([cidadeFiltro, canalFiltro, edicaoFiltro, gestorFiltro].some(Boolean)) && (
+									<motion.button 
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}
+										className="btn btn-ghost" 
+										onClick={clearFilters}
+									>
+										<X className="w-4 h-4 mr-2" />
+										Limpar filtros
+									</motion.button>
+								)}
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</div>
 
-			{viewMode === 'table' && (
-				<div className="card overflow-x-auto">
-					<table className="w-full border-collapse min-w-[900px]">
-						<thead>
-							{table.getHeaderGroups().map(headerGroup => (
-								<tr key={headerGroup.id}>
-									{headerGroup.headers.map(header => (
-										<th className="sticky top-0 z-0 bg-zinc-900/80 backdrop-blur px-4 py-3 text-left text-slate-300 text-xs uppercase tracking-wide border-b border-zinc-800" key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</th>
-									))}
-								</tr>
-							))}
-						</thead>
-						<tbody>
-							{table.getRowModel().rows.map(row => (
-								<tr key={row.id} className="hover:bg-zinc-900/40">
-									{row.getVisibleCells().map((cell, idx) => (
-										<td
-											className={`px-4 py-3 text-sm text-slate-300 border-b border-zinc-800 ${idx === 0 ? 'whitespace-nowrap font-medium text-slate-200' : ''}`}
-											key={cell.id}
+			{/* Conteúdo principal */}
+			<AnimatePresence mode="wait">
+				{viewMode === 'table' ? (
+					<motion.div 
+						key="table"
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className="card overflow-x-auto"
+					>
+						<table className="w-full border-collapse min-w-[900px]">
+							<thead>
+								{table.getHeaderGroups().map(headerGroup => (
+									<tr key={headerGroup.id}>
+										{headerGroup.headers.map(header => (
+											<th className="sticky top-0 z-0 bg-gradient-to-r from-blue-900/20 to-purple-900/20 backdrop-blur px-4 py-4 text-left text-blue-300 text-xs uppercase tracking-wide border-b border-blue-500/30" key={header.id}>
+												{flexRender(header.column.columnDef.header, header.getContext())}
+											</th>
+										))}
+									</tr>
+								))}
+							</thead>
+							<tbody>
+								{table.getRowModel().rows.map((row, index) => (
+									<motion.tr 
+										key={row.id} 
+										initial={{ opacity: 0, x: -20 }}
+										animate={{ opacity: 1, x: 0 }}
+										transition={{ delay: index * 0.05 }}
+										className="table-row hover:bg-blue-500/5 transition-all duration-300"
+									>
+										{row.getVisibleCells().map((cell, idx) => (
+											<td
+												className={`px-4 py-4 text-sm text-slate-300 border-b border-blue-500/10 ${idx === 0 ? 'whitespace-nowrap font-medium text-blue-300' : ''}`}
+												key={cell.id}
+											>
+												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											</td>
+										))}
+									</motion.tr>
+								))}
+							</tbody>
+						</table>
+						{!leadsFiltrados.length && (
+							<motion.div 
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								className="p-12 w-full text-center text-slate-400"
+							>
+								<div className="text-6xl mb-4">🔍</div>
+								<p className="text-lg">Nenhum lead encontrado</p>
+							</motion.div>
+						)}
+					</motion.div>
+				) : (
+					<motion.div 
+						key="grid"
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6"
+					>
+						{leadsFiltrados.map((lead: any, index) => {
+							const cidade = lead.cidade?.cidade === 'Outra cidade' && lead.cidade?.seOutra ? lead.cidade.seOutra : lead.cidade?.cidade;
+							return (
+								<motion.div 
+									key={lead._id?.$oid || lead._id}
+									initial={{ opacity: 0, y: 20, scale: 0.9 }}
+									animate={{ opacity: 1, y: 0, scale: 1 }}
+									transition={{ delay: index * 0.1 }}
+									whileHover={{ scale: 1.02, y: -5 }}
+									className="card p-6 hover:border-blue-400/50 transition-all duration-300 group"
+								>
+									<div className="flex items-start justify-between mb-4">
+										<div className="flex-1">
+											<h3 className="text-lg font-semibold text-blue-300 mb-1 group-hover:text-blue-200 transition-colors">
+												{lead.nome}
+											</h3>
+											<div className="w-12 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full"></div>
+										</div>
+									</div>
+									
+									<div className="space-y-3 mb-6">
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">Cidade:</span>
+											<span className="text-slate-300">{cidade || '-'}</span>
+										</div>
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">Edição:</span>
+											<span className="text-slate-300">{lead.edicao || '-'}</span>
+										</div>
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">Canal:</span>
+											<span className="text-slate-300">{lead.canaldeaquisicao?.origem || '-'}</span>
+										</div>
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">Gestor:</span>
+											<span className="text-slate-300">{lead.canaldeaquisicao?.nomeDoGestor?.trim() || '-'}</span>
+										</div>
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">WhatsApp:</span>
+											<span className="text-slate-300 font-mono">{lead.whatsappNumber || '-'}</span>
+										</div>
+										<div className="flex items-center text-sm">
+											<span className="text-slate-400 w-20">Email:</span>
+											<span className="text-slate-300">{lead.email || '-'}</span>
+										</div>
+									</div>
+									
+									<div className="flex gap-2 pt-4 border-t border-blue-500/20">
+										<motion.button 
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.9 }}
+											className="flex-1 btn btn-ghost text-xs py-2" 
+											onClick={() => onView?.(lead)}
 										>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-										</td>
-									))}
-								</tr>
-							))}
-						</tbody>
-					</table>
-					{!leadsFiltrados.length && <div className="p-8 w-full text-center text-slate-400">Nenhum lead encontrado</div>}
-				</div>
-			)}
+											<Eye className="w-4 h-4" />
+										</motion.button>
+										<motion.button 
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.9 }}
+											className="flex-1 btn btn-ghost text-xs py-2" 
+											onClick={() => onEdit?.(lead)}
+										>
+											<Edit className="w-4 h-4" />
+										</motion.button>
+										<motion.button 
+											whileHover={{ scale: 1.1 }}
+											whileTap={{ scale: 0.9 }}
+											className="flex-1 btn btn-ghost text-xs py-2" 
+											onClick={() => onSendMessage?.(lead)}
+										>
+											<MessageCircle className="w-4 h-4" />
+										</motion.button>
+									</div>
+								</motion.div>
+							);
+						})}
+						{!leadsFiltrados.length && (
+							<motion.div 
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								className="col-span-full text-center py-12 text-slate-400"
+							>
+								<div className="text-6xl mb-4">🔍</div>
+								<p className="text-lg">Nenhum lead encontrado</p>
+							</motion.div>
+						)}
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</motion.div>
+	);
+}
+
 
 			{viewMode === 'mini' && (
 				<div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">

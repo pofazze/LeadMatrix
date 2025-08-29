@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import apiClient from '../api/apiClient';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks/UseAuth';
+import { Play, Pause, Square, RotateCcw, Zap, Image, Video, Clock, Shield } from 'lucide-react';
 
 type MediaKind = 'none' | 'image' | 'video';
 
@@ -39,10 +41,14 @@ export default function DisparoWPP() {
   const w2connected = useMemo(() => live.whatsapp2.connected, [live]);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <DisparoForm title="Whatsapp 1" defaultInstance="whatsapp1" socket={disparoSocketRef} connected={w1connected} phoneNumber={live.whatsapp1.phoneNumber || null} />
-      <DisparoForm title="Whatsapp 2" defaultInstance="whatsapp2" socket={disparoSocketRef} connected={w2connected} phoneNumber={live.whatsapp2.phoneNumber || null} />
-    </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="grid gap-8 lg:grid-cols-2"
+    >
+      <DisparoForm title="WhatsApp 1" defaultInstance="whatsapp1" socket={disparoSocketRef} connected={w1connected} phoneNumber={live.whatsapp1.phoneNumber || null} />
+      <DisparoForm title="WhatsApp 2" defaultInstance="whatsapp2" socket={disparoSocketRef} connected={w2connected} phoneNumber={live.whatsapp2.phoneNumber || null} />
+    </motion.div>
   );
 }
 
@@ -302,113 +308,362 @@ function DisparoForm({ title, defaultInstance, socket, connected = false, phoneN
   };
 
   return (
-    <form className="w-full flex flex-col gap-4 rounded-xl text-red-100 border border-red-800 bg-[#140507] p-4 shadow-lg shadow-red-950/30" onSubmit={handleSubmit}>
-      <div className="mb-1 text-sm font-semibold text-slate-300">{title}</div>
-      <div className="text-[.7rem] text-red-300/90">INSTÂNCIA: <span className="font-mono text-red-200 uppercase">{instance}</span> • STATUS: {connected ? <span className="text-emerald-400">CONECTADO</span> : <span className="text-red-400">DESCONECTADO</span>} {connected && phoneNumber && <span className="ml-2">• NÚMERO: <span className="font-mono text-red-200">{phoneNumber}</span></span>}</div>
+    <motion.form 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="card p-6 space-y-6" 
+      onSubmit={handleSubmit}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <Zap className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-blue-300">{title}</h3>
+            <div className="text-xs text-slate-400 font-mono uppercase tracking-wider">
+              {instance}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+          <span className={`text-xs font-medium ${connected ? 'status-online' : 'status-offline'}`}>
+            {connected ? 'CONECTADO' : 'DESCONECTADO'}
+          </span>
+          {connected && phoneNumber && (
+            <span className="text-xs text-slate-400 ml-2 font-mono">
+              {phoneNumber}
+            </span>
+          )}
+        </div>
+      </div>
 
       {!connected && (
-        <div className="text-xs text-amber-300 bg-amber-950/40 border border-amber-900 rounded p-2">
-          Conecte o WhatsApp na aba "WhatsApp Connect" para liberar o disparo.
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3"
+        >
+          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+            <Shield className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-amber-300 text-sm font-medium">WhatsApp Desconectado</p>
+            <p className="text-amber-400/80 text-xs">Conecte na aba "WhatsApp Connect" para liberar o disparo</p>
+          </div>
+        </motion.div>
       )}
 
-      <fieldset disabled={disabledAll} style={{display: 'flex', flexFlow: 'column nowrap', gap: '1rem'}} className={disabledAll ? 'opacity-60 pointer-events-none select-none' : ''}>
-        <div className="mb-1 gap-2 flex flex-row align-center">
-          <label className="font-semibold text-red-200">Coleção para disparo:</label>
-          <select className="ml-2 rounded-md border border-red-900 bg-[#1d0a0d] px-2 py-1 text-sm text-red-100" value={selectedCollection} onChange={e => setSelectedCollection(e.target.value)}>
+      <fieldset disabled={disabledAll} className={`space-y-6 transition-all duration-300 ${disabledAll ? 'opacity-50 pointer-events-none' : ''}`}>
+        {/* Seleção de coleção */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-blue-300">Coleção para disparo</label>
+          <select className="input" value={selectedCollection} onChange={e => setSelectedCollection(e.target.value)}>
             {collections.map(name => (
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
         </div>
-        <div style={{display: 'flex', flexFlow: 'row wrap', gap: '.5rem'}}>
-          <label className="font-semibold text-red-200">Mensagem:</label>
-          <div className="mb-2 flex items-center gap-2 text-sm text-red-200">
-            <button type="button" className="h-8 w-8 rounded-md border border-red-800 bg-red-900/40" onClick={() => insertAroundSelection('bold')}><b>B</b></button>
-            <button type="button" className="h-8 w-8 rounded-md border border-red-800 bg-red-900/40" onClick={() => insertAroundSelection('italic')}><i>I</i></button>
-            <button type="button" className="h-8 w-8 rounded-md border border-red-800 bg-red-900/40 line-through" onClick={() => insertAroundSelection('strike')}>S</button>
-            <span className="ml-2 text-xs text-red-300/80">Use os botões para <b>*negrito*</b>, <i>_itálico_</i> ou <s>~riscado~</s></span>
+        
+        {/* Mensagem */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-blue-300">Mensagem</label>
+          <div className="flex items-center gap-2 mb-2">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button" 
+              className="w-8 h-8 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center" 
+              onClick={() => insertAroundSelection('bold')}
+            >
+              <b className="text-blue-300">B</b>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button" 
+              className="w-8 h-8 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center" 
+              onClick={() => insertAroundSelection('italic')}
+            >
+              <i className="text-blue-300">I</i>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button" 
+              className="w-8 h-8 rounded-lg border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center line-through" 
+              onClick={() => insertAroundSelection('strike')}
+            >
+              <span className="text-blue-300">S</span>
+            </motion.button>
+            <span className="ml-2 text-xs text-slate-400">
+              Formatação: <b>*negrito*</b>, <i>_itálico_</i>, <s>~riscado~</s>
+            </span>
           </div>
-          <textarea style={{ width: '100%' }} ref={textareaRef} value={message} onChange={(e) => setMessage(e.target.value)} rows={5} className="rounded-md border border-red-900 bg-[#1d0a0d] px-3 py-2 text-sm placeholder-red-300/50 focus:outline-none focus:ring-1 focus:ring-red-600" placeholder="Digite e use os botões acima para formatar seu texto..." required />
+          <textarea 
+            ref={textareaRef} 
+            value={message} 
+            onChange={(e) => setMessage(e.target.value)} 
+            rows={5} 
+            className="input resize-none" 
+            placeholder="Digite sua mensagem aqui..." 
+            required 
+          />
         </div>
-        <div className="mb-3">
-          <span className="font-semibold text-red-200">Anexar mídia:</span>
-          <div className="mt-1.5 flex gap-4 text-red-200">
-            <label className="flex items-center gap-1.5"><input type="radio" name={`media-${instance}`} checked={mediaType === 'none'} onChange={() => handleMediaTypeChange('none')} />Nenhum</label>
-            <label className="flex items-center gap-1.5"><input type="radio" name={`media-${instance}`} checked={mediaType === 'image'} onChange={() => handleMediaTypeChange('image')} />Imagem</label>
-            <label className="flex items-center gap-1.5"><input type="radio" name={`media-${instance}`} checked={mediaType === 'video'} onChange={() => handleMediaTypeChange('video')} />Vídeo</label>
+        
+        {/* Tipo de mídia */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-blue-300">Anexar mídia</label>
+          <div className="flex gap-4">
+            <motion.label 
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <input 
+                type="radio" 
+                name={`media-${instance}`} 
+                checked={mediaType === 'none'} 
+                onChange={() => handleMediaTypeChange('none')}
+                className="text-blue-500"
+              />
+              <span className="text-slate-300">Nenhum</span>
+            </motion.label>
+            <motion.label 
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <input 
+                type="radio" 
+                name={`media-${instance}`} 
+                checked={mediaType === 'image'} 
+                onChange={() => handleMediaTypeChange('image')}
+                className="text-blue-500"
+              />
+              <Image className="w-4 h-4 text-blue-400" />
+              <span className="text-slate-300">Imagem</span>
+            </motion.label>
+            <motion.label 
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <input 
+                type="radio" 
+                name={`media-${instance}`} 
+                checked={mediaType === 'video'} 
+                onChange={() => handleMediaTypeChange('video')}
+                className="text-blue-500"
+              />
+              <Video className="w-4 h-4 text-blue-400" />
+              <span className="text-slate-300">Vídeo</span>
+            </motion.label>
           </div>
         </div>
-        <div className="mb-1 gap-2 flex flex-row align-center">
-          <label className="font-semibold text-red-200">Perfil de espera:</label>
-          <select className="ml-2 rounded-md border border-red-900 bg-[#1d0a0d] px-2 py-1 text-sm text-red-100" value={waitProfile} onChange={(e) => setWaitProfile(e.target.value as any)}>
-            <option value="20-30">20–30s</option>
-            <option value="30-100">30–100s</option>
-            <option value="60-200">60–200s</option>
-          </select>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-red-200">
-          <input type="checkbox" checked={skipAlreadySent} onChange={(e) => setSkipAlreadySent(e.target.checked)} />
-          Não enviar para quem já recebeu
-        </label>
-
-        {mediaType === 'image' && (
-          <div className="flex flex-col gap-2">
-            <input type="file" accept="image/*" onChange={handleImageChange} className="rounded-md border border-red-900 bg-[#1d0a0d] px-3 py-2 text-sm" />
-            {imagePreview && (
-              <div className="relative mt-2 w-full max-w-sm">
-                <img src={imagePreview} alt="Miniatura da imagem" className="h-auto max-h-40 w-full rounded-lg object-contain bg-[#220b0f] border border-red-900" />
-                <button type="button" className="absolute right-2 top-2 h-8 w-8 rounded-md border border-red-900 bg-red-900/40 text-lg font-bold" onClick={handleRemoveImage} title="Remover imagem">×</button>
-              </div>
-            )}
+        
+        {/* Configurações */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-blue-300 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Perfil de espera
+            </label>
+            <select className="input" value={waitProfile} onChange={(e) => setWaitProfile(e.target.value as any)}>
+              <option value="20-30">Rápido (20–30s)</option>
+              <option value="30-100">Moderado (30–100s)</option>
+              <option value="60-200">Seguro (60–200s)</option>
+            </select>
           </div>
-        )}
-
-        {mediaType === 'video' && (
-          <div className="flex flex-col gap-2">
-            <input type="file" accept="video/*" onChange={handleVideoChange} className="rounded-md border border-red-900 bg-[#1d0a0d] px-3 py-2 text-sm" />
-            {videoPreview && (
-              <div className="relative mt-2 w-full max-w-sm">
-                <video src={videoPreview} className="h-auto max-h-40 w-full rounded-lg object-contain bg-[#220b0f] border border-red-900" controls />
-                <button type="button" className="absolute right-2 top-2 h-8 w-8 rounded-md border border-red-900 bg-red-900/40 text-lg font-bold" onClick={handleRemoveVideo} title="Remover vídeo">×</button>
-              </div>
-            )}
-          </div>
-        )}
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-blue-300 flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Proteção
+            </label>
+            <motion.label 
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-blue-500/20 hover:border-blue-500/40 transition-colors"
+            >
+              <input 
+                type="checkbox" 
+                checked={skipAlreadySent} 
+                onChange={(e) => setSkipAlreadySent(e.target.checked)}
+                className="text-blue-500"
+              />
+              <span className="text-sm text-slate-300">Não enviar duplicatas</span>
+        {/* Upload de mídia */}
+        <AnimatePresence>
+          {mediaType === 'image' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-3"
+            >
+              <input type="file" accept="image/*" onChange={handleImageChange} className="input" />
+              {imagePreview && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="relative w-full max-w-sm"
+                >
+                  <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-blue-500/30" />
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    type="button" 
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center" 
+                    onClick={handleRemoveImage}
+                  >
+                    ×
+                  </motion.button>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+          
+          {mediaType === 'video' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-3"
+            >
+              <input type="file" accept="video/*" onChange={handleVideoChange} className="input" />
+              {videoPreview && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="relative w-full max-w-sm"
+                >
+                  <video src={videoPreview} className="w-full h-40 object-cover rounded-lg border border-blue-500/30" controls />
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    type="button" 
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center" 
+                    onClick={handleRemoveVideo}
+                  >
+                    ×
+                  </motion.button>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </fieldset>
 
-      <div className="w-full flex items-center gap-2">
-        <button type="submit" disabled={!connected || !!runId} className="rounded-md bg-red-600 hover:bg-red-500 px-3 py-2 font-semibold text-white disabled:opacity-50">Iniciar disparo</button>
-        <button type="button" onClick={pause} disabled={!runId} className="rounded-md bg-[#2a0e12] border border-red-900 px-3 py-2 text-sm disabled:opacity-50 hover:bg-[#351016]">Pausar</button>
-        <button type="button" onClick={resume} disabled={!runId} className="rounded-md bg-[#2a0e12] border border-red-900 px-3 py-2 text-sm disabled:opacity-50 hover:bg-[#351016]">Retomar</button>
-        <button type="button" onClick={cancel} disabled={!runId} className="rounded-md bg-[#2a0e12] border border-red-900 px-3 py-2 text-sm disabled:opacity-50 hover:bg-[#351016]">Cancelar</button>
+      {/* Controles */}
+      <div className="flex flex-wrap gap-3">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="submit" 
+          disabled={!connected || !!runId} 
+          className="btn btn-primary flex-1 min-w-[140px]"
+        >
+          <Play className="w-4 h-4 mr-2" />
+          Iniciar Disparo
+        </motion.button>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="button" 
+          onClick={pause} 
+          disabled={!runId} 
+          className="btn btn-ghost"
+        >
+          <Pause className="w-4 h-4 mr-2" />
+          Pausar
+        </motion.button>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="button" 
+          onClick={resume} 
+          disabled={!runId} 
+          className="btn btn-ghost"
+        >
+          <Play className="w-4 h-4 mr-2" />
+          Retomar
+        </motion.button>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          type="button" 
+          onClick={cancel} 
+          disabled={!runId} 
+          className="btn btn-outline"
+        >
+          <Square className="w-4 h-4 mr-2" />
+          Cancelar
+        </motion.button>
       </div>
+      
+      {/* Progress */}
       {progress && (
-        <div className="mt-2 flex flex-col gap-2">
-          <div className="h-2 w-full overflow-hidden rounded bg-[#2b0f14] border border-red-900">
-            {(() => {
-              const pct = progress.total > 0 ? Math.min(100, Math.round((progress.processed / progress.total) * 100)) : 0;
-              return <div className="h-full bg-red-600 transition-[width] duration-300" style={{ width: pct + '%' }} />;
-            })()}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
+          <div className="progress-bar h-3">
+            <motion.div 
+              className="progress-fill"
+              initial={{ width: 0 }}
+              animate={{ 
+                width: `${progress.total > 0 ? Math.min(100, Math.round((progress.processed / progress.total) * 100)) : 0}%` 
+              }}
+              transition={{ duration: 0.5 }}
+            />
           </div>
-          <div className="mt-1 text-xs text-red-200 flex items-center gap-3">
-            {(() => {
-              const pct = progress.total > 0 ? Math.min(100, Math.round((progress.processed / progress.total) * 100)) : 0;
-              return <span className="inline-block min-w-[3ch] text-right">{pct}%</span>;
-            })()}
-            <span>{progress.processed}/{progress.total}</span>
-    <span className="flex items-center gap-1">• <i className="fa-solid fa-check text-red-500"></i> {progress.sent}</span>
-    <span className="flex items-center gap-1">• <i className="fa-solid fa-triangle-exclamation text-red-500"></i> {progress.errors}</span>
+          
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            <span className="text-blue-300 font-medium">
+              {progress.total > 0 ? Math.min(100, Math.round((progress.processed / progress.total) * 100)) : 0}%
+            </span>
+            <span className="text-slate-400">
+              {progress.processed}/{progress.total}
+            </span>
+            <span className="text-green-400">
+              ✓ {progress.sent}
+            </span>
+            <span className="text-red-400">
+              ⚠ {progress.errors}
+            </span>
             {waitInfo && (
-              <span className="ml-auto text-[11px] text-red-300">Aguardando {Math.max(0, Math.ceil((waitInfo.until - Date.now()) / 1000))}s para próximo envio...</span>
+              <span className="text-amber-400 text-xs ml-auto">
+                Aguardando {Math.max(0, Math.ceil((waitInfo.until - Date.now()) / 1000))}s...
+              </span>
             )}
           </div>
+          
           {runId && (
-            <div className="mt-1 text-[10px] text-red-300/80">Socket: {socketConnected ? <span className="text-emerald-400">conectado</span> : <span className="text-red-400">desconectado</span>} • Run: {runId}</div>
+            <div className="text-xs text-slate-500 flex items-center gap-2">
+              <span>Socket:</span>
+              <span className={socketConnected ? 'status-online' : 'status-offline'}>
+                {socketConnected ? 'conectado' : 'desconectado'}
+              </span>
+              <span>•</span>
+              <span className="font-mono">{runId}</span>
+            </div>
           )}
-        </div>
+        </motion.div>
       )}
-  <p className="text-sm text-red-200 flex items-center gap-2">{statusKind !== 'idle' && getStatusIcon(statusKind) && (<i className={`fa-solid ${getStatusIcon(statusKind)} text-red-500`}></i>)}{status}</p>
-    </form>
+      
+      {/* Status */}
+      {status && (
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center gap-2 text-sm text-blue-300"
+        >
+          {statusKind !== 'idle' && getStatusIcon(statusKind) && (
+            <i className={`fa-solid ${getStatusIcon(statusKind)} text-blue-400`}></i>
+          )}
+          {status}
+        </motion.div>
+      )}
+    </motion.form>
   );
 }
